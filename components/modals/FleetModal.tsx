@@ -14,6 +14,7 @@ export default function FleetModal({ item, onClose }: Props) {
   const { saveFleet } = useApp();
   const [form, setForm] = useState<FleetItem>(item ?? {
     id: uid(), reg: '', model: '', cap: 0, year: '', status: 'Active', service: '', notes: '',
+    bowser_make: '', bowser_no: '', axles: 0,
   });
 
   const set = (k: keyof FleetItem, v: string | number) => setForm(prev => ({ ...prev, [k]: v }));
@@ -33,10 +34,10 @@ export default function FleetModal({ item, onClose }: Props) {
         </div>
         <div className="modal-body">
           <div className="form-grid">
-            <div className="form-group"><label>Registration no.</label><input value={form.reg} onChange={e => set('reg', e.target.value)} /></div>
-            <div className="form-group"><label>Make / model</label><input value={form.model} onChange={e => set('model', e.target.value)} /></div>
-            <div className="form-group"><label>Capacity (kg)</label><input type="number" value={form.cap || ''} onChange={e => set('cap', Number(e.target.value))} /></div>
-            <div className="form-group"><label>Year</label><input type="number" value={form.year || ''} onChange={e => set('year', e.target.value)} /></div>
+            <div className="form-group"><label>Vehicle Number</label><input value={form.reg} onChange={e => set('reg', e.target.value)} /></div>
+            <div className="form-group"><label>Vehicle Make</label><input value={form.model} onChange={e => set('model', e.target.value)} /></div>
+            <div className="form-group"><label>Bowser Capacity (kg)</label><input type="number" value={form.cap || ''} onChange={e => set('cap', Number(e.target.value))} /></div>
+            
             <div className="form-group">
               <label>Status</label>
               <select value={form.status} onChange={e => set('status', e.target.value)}>
@@ -45,8 +46,10 @@ export default function FleetModal({ item, onClose }: Props) {
                 <option>Inactive</option>
               </select>
             </div>
-            <div className="form-group"><label>Last service date</label><input type="date" value={form.service} onChange={e => set('service', e.target.value)} /></div>
-            <div className="form-group full"><label>Notes</label><textarea style={{ minHeight: 48 }} value={form.notes} onChange={e => set('notes', e.target.value)} /></div>
+            <div className="form-group"><label>Year</label><input type="number" value={form.year || ''} onChange={e => set('year', e.target.value)} /></div>
+            <div className="form-group"><label>Bowser Make</label><input value={form.bowser_make} onChange={e => set('bowser_make', e.target.value)} /></div>
+            <div className="form-group"><label>Bowser Number</label><input value={form.bowser_no} onChange={e => set('bowser_no', e.target.value)} /></div>
+            <div className="form-group"><label>Number of Axles</label><input type="number" value={form.axles || ''} onChange={e => set('axles', Number(e.target.value))} /></div>
           </div>
         </div>
         <div className="modal-footer">

@@ -19,6 +19,7 @@ export default function App() {
   const [page, setPage] = useState('dashboard');
   const { loading } = useApp();
 
+
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--navy)', color: '#9fb0c9', fontFamily: 'var(--cond)', fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
@@ -53,9 +54,6 @@ export default function App() {
         <div className="main">
           {renderPage()}
         </div>
-      </div>
-      <div className="backup-bar">
-        <span>⚠ Data is stored in Supabase. Use <strong>Export backup</strong> to save a local copy regularly.</span>
       </div>
     </>
   );

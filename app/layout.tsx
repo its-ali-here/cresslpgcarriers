@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'CRESS LPG Carriers — Business Management',
-  description: 'Fleet and business management system for CRESS LPG Carriers',
+  title: 'Cress LPG Carriers',
+  description: 'Fleet and business management system for Cress LPG Carriers',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

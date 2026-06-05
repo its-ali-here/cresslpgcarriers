@@ -12,16 +12,30 @@ interface Props {
 
 type TripForm = Omit<Trip, 'id' | 'total_exp' | 'net_pl' | 'diesel_purchases'>;
 
+function toDisplay(val: string) {
+  if (!val) return '';
+  const p = val.split('-');
+  return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : val;
+}
+
+function toISO(val: string) {
+  if (!val) return '';
+  const p = val.split('/');
+  return p.length === 3 ? `${p[2]}-${p[1]}-${p[0]}` : val;
+}
+
 function emptyForm(settings: { driverDaily: number; helperDaily: number; tripDays: number }): TripForm {
   return {
     no: '', month: '', load_date: today(), offload_date: '', vehicle: '', driver: '', helper: '', client: '',
     from: '', to: '', km: 0, exp_days: settings.tripDays || 0, act_days: 0, over_days: 0,
-    lifted: 0, delivered: 0, lpg_diff: '', lpg_bill: 'absorbed',
+    lifted: 0, delivered: 0, lpg_diff: '', lpg_bill: 'absorbed', lpg_rent_mt: 0, lpg_rent_total: 0,
     billed: 0, peshgi: 0, status: 'Completed',
-    toll: 0, driver_exp: (settings.driverDaily || 0) * (settings.tripDays || 0),
-    helper_exp: (settings.helperDaily || 0) * (settings.tripDays || 0),
+    toll: 0, driver_exp: ((settings.driverDaily || 0) + (settings.helperDaily || 0)) * (settings.tripDays || 0),
+    helper_exp: 0,
     overday_cost: 0, chalan: 0, chalan_resp: '', tyre: 0, loadunload: 0,
-    weigh: 0, excise: 0, motorway: 0, grease: 0, air: 0, other_exp: 0, other_notes: '',
+    weigh: 0, excise: 0, motorway: 0, grease: 0, air: 0,
+    engine_oil_litres: 0, engine_oil_price: 0, engine_oil_cost: 0,
+    other_exp: 0, other_notes: '',
     delay_reason: '', delay_notes: '',
     diesel_open: 0, diesel_close: 0, diesel_total: 0, diesel_consumed: 0, diesel_avg: '', diesel_cost: 0,
     notes: '',
@@ -44,7 +58,6 @@ export default function TripModal({ trip, onClose }: Props) {
 
   const fuelSuppliers = parties.filter(p => p.type === 'fuel');
   const activeDrivers = drivers.filter(d => d.role === 'Driver' && d.status === 'Active');
-  const activeHelpers = drivers.filter(d => d.role === 'Helper' && d.status === 'Active');
   const clients = parties.filter(p => p.type === 'client');
 
   function calcOverDays(expDays: number, actDays: number) {
@@ -56,7 +69,18 @@ export default function TripModal({ trip, onClose }: Props) {
   function calcLpgDiff(lifted: number, delivered: number) {
     const diff = delivered - lifted;
     const diffStr = diff ? (diff > 0 ? '+' + diff : String(diff)) : '';
-    setForm(prev => ({ ...prev, lifted, delivered, lpg_diff: diffStr }));
+    setForm(prev => {
+      const rentTotal = (prev.lpg_rent_mt || 0) * (delivered / 1000);
+      return { ...prev, lifted, delivered, lpg_diff: diffStr, lpg_rent_total: rentTotal };
+    });
+  }
+
+  function setLpgRentMt(val: number) {
+    setForm(prev => ({ ...prev, lpg_rent_mt: val, lpg_rent_total: val * ((prev.delivered || 0) / 1000) }));
+  }
+
+  function calcEngineOil(litres: number, price: number) {
+    setForm(prev => ({ ...prev, engine_oil_litres: litres, engine_oil_price: price, engine_oil_cost: litres * price }));
   }
 
   function updateDieselRow(index: number, key: keyof DieselPurchase, value: string | number) {
@@ -68,7 +92,6 @@ export default function TripModal({ trip, onClose }: Props) {
         const prc = key === 'price' ? Number(value) : rows[index].price;
         rows[index].amount = ltr * prc;
       }
-      // recalc totals
       const totalLtr = rows.reduce((s, r) => s + (r.litres || 0), 0);
       const totalCost = rows.reduce((s, r) => s + (r.amount || 0), 0);
       const open = form.diesel_open || 0;
@@ -106,16 +129,13 @@ export default function TripModal({ trip, onClose }: Props) {
     });
   }
 
-  const expFields: (keyof TripForm)[] = ['toll', 'driver_exp', 'helper_exp', 'overday_cost', 'chalan', 'tyre', 'loadunload', 'weigh', 'excise', 'motorway', 'grease', 'air', 'other_exp', 'diesel_cost'];
+  const expFields: (keyof TripForm)[] = ['toll', 'driver_exp', 'overday_cost', 'chalan', 'tyre', 'loadunload', 'weigh', 'excise', 'grease', 'engine_oil_cost', 'other_exp', 'diesel_cost'];
   const totalExp = expFields.reduce((s, f) => s + (Number(form[f]) || 0), 0);
-  const pl = (form.billed || 0) - totalExp;
-  const recv = (form.billed || 0) - (form.peshgi || 0);
+  const pl = (form.lpg_rent_total || 0) - totalExp;
 
   async function handleSave() {
     const id = trip?.id || uid();
-    const total_exp = totalExp;
-    const net_pl = pl;
-    await saveTrip({ ...form, id, total_exp, net_pl, diesel_purchases: dieselRows });
+    await saveTrip({ ...form, id, total_exp: totalExp, net_pl: pl, diesel_purchases: dieselRows });
     onClose();
   }
 
@@ -131,9 +151,8 @@ export default function TripModal({ trip, onClose }: Props) {
 
             <div className="form-section">Trip info</div>
             <div className="form-group"><label>Trip / load no.</label><input value={form.no} onChange={e => set('no', e.target.value)} placeholder="e.g. 001" /></div>
-            <div className="form-group"><label>Month</label><input value={form.month} onChange={e => set('month', e.target.value)} placeholder="e.g. Feb 2026" /></div>
-            <div className="form-group"><label>Load date</label><input type="date" value={form.load_date} onChange={e => set('load_date', e.target.value)} /></div>
-            <div className="form-group"><label>Off-load date</label><input type="date" value={form.offload_date} onChange={e => set('offload_date', e.target.value)} /></div>
+            <div className="form-group"><label>Load date</label><input type="text" value={toDisplay(form.load_date)} onChange={e => set('load_date', toISO(e.target.value))} placeholder="dd/mm/yyyy" /></div>
+            <div className="form-group"><label>Off-load date</label><input type="text" value={toDisplay(form.offload_date)} onChange={e => set('offload_date', toISO(e.target.value))} placeholder="dd/mm/yyyy" /></div>
             <div className="form-group">
               <label>Vehicle (reg no.)</label>
               <select value={form.vehicle} onChange={e => set('vehicle', e.target.value)}>
@@ -146,13 +165,6 @@ export default function TripModal({ trip, onClose }: Props) {
               <select value={form.driver} onChange={e => set('driver', e.target.value)}>
                 <option value="">— select —</option>
                 {activeDrivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Helper</label>
-              <select value={form.helper} onChange={e => set('helper', e.target.value)}>
-                <option value="">— none —</option>
-                {activeHelpers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </div>
             <div className="form-group">
@@ -171,36 +183,9 @@ export default function TripModal({ trip, onClose }: Props) {
             <div className="form-group"><label>Actual days</label><input type="number" value={form.act_days || ''} onChange={e => calcOverDays(form.exp_days, Number(e.target.value))} /></div>
             <div className="form-group"><label>Over days</label><input type="number" readOnly value={form.over_days || ''} style={{ color: 'var(--accent)' }} /></div>
 
-            <div className="form-section">LPG</div>
-            <div className="form-group"><label>Weight lifted (kg)</label><input type="number" value={form.lifted || ''} onChange={e => calcLpgDiff(Number(e.target.value), form.delivered)} /></div>
-            <div className="form-group"><label>Weight delivered (kg)</label><input type="number" value={form.delivered || ''} onChange={e => calcLpgDiff(form.lifted, Number(e.target.value))} /></div>
-            <div className="form-group"><label>Gain / loss (kg)</label>
-              <input readOnly value={form.lpg_diff} style={{ fontFamily: 'var(--mono)', color: form.lpg_diff.startsWith('+') ? 'var(--green)' : form.lpg_diff.startsWith('-') ? 'var(--red)' : 'var(--text)' }} />
-            </div>
-            <div className="form-group">
-              <label>Gain/loss billed to client?</label>
-              <select value={form.lpg_bill} onChange={e => set('lpg_bill', e.target.value)}>
-                <option value="absorbed">Absorbed by us</option>
-                <option value="billed">Billed to client</option>
-              </select>
-            </div>
-
-            <div className="form-section">Billing</div>
-            <div className="form-group"><label>Trip amount billed (Rs)</label><input type="number" value={form.billed || ''} onChange={e => set('billed', Number(e.target.value))} /></div>
-            <div className="form-group"><label>Peshgi given (Rs)</label><input type="number" value={form.peshgi || ''} onChange={e => set('peshgi', Number(e.target.value))} /></div>
-            <div className="form-group">
-              <label>Status</label>
-              <select value={form.status} onChange={e => set('status', e.target.value)}>
-                <option>Completed</option>
-                <option>In progress</option>
-                <option>Cancelled</option>
-              </select>
-            </div>
-
             <div className="form-section">Trip expenses</div>
             <div className="form-group"><label>Toll / tolpalaza (Rs)</label><input type="number" value={form.toll || ''} onChange={e => set('toll', Number(e.target.value))} /></div>
-            <div className="form-group"><label>Driver daily allowance (Rs)</label><input type="number" value={form.driver_exp || ''} onChange={e => set('driver_exp', Number(e.target.value))} /></div>
-            <div className="form-group"><label>Helper daily allowance (Rs)</label><input type="number" value={form.helper_exp || ''} onChange={e => set('helper_exp', Number(e.target.value))} /></div>
+            <div className="form-group"><label>Driver + Helper daily allowance (Rs)</label><input type="number" value={form.driver_exp || ''} onChange={e => set('driver_exp', Number(e.target.value))} /></div>
             <div className="form-group"><label>Over-days extra cost (Rs)</label><input type="number" value={form.overday_cost || ''} onChange={e => set('overday_cost', Number(e.target.value))} /></div>
             <div className="form-group"><label>Motorway chalan (Rs)</label><input type="number" value={form.chalan || ''} onChange={e => set('chalan', Number(e.target.value))} /></div>
             <div className="form-group">
@@ -215,9 +200,10 @@ export default function TripModal({ trip, onClose }: Props) {
             <div className="form-group"><label>Load / unload (Rs)</label><input type="number" value={form.loadunload || ''} onChange={e => set('loadunload', Number(e.target.value))} /></div>
             <div className="form-group"><label>Weighbridge / manshana (Rs)</label><input type="number" value={form.weigh || ''} onChange={e => set('weigh', Number(e.target.value))} /></div>
             <div className="form-group"><label>Excise + PP (Rs)</label><input type="number" value={form.excise || ''} onChange={e => set('excise', Number(e.target.value))} /></div>
-            <div className="form-group"><label>Motorway / extra (Rs)</label><input type="number" value={form.motorway || ''} onChange={e => set('motorway', Number(e.target.value))} /></div>
             <div className="form-group"><label>Greasing / service (Rs)</label><input type="number" value={form.grease || ''} onChange={e => set('grease', Number(e.target.value))} /></div>
-            <div className="form-group"><label>Air check (Rs)</label><input type="number" value={form.air || ''} onChange={e => set('air', Number(e.target.value))} /></div>
+            <div className="form-group"><label>Engine oil (ltr)</label><input type="number" value={form.engine_oil_litres || ''} onChange={e => calcEngineOil(Number(e.target.value), form.engine_oil_price)} /></div>
+            <div className="form-group"><label>Engine oil price/ltr (Rs)</label><input type="number" value={form.engine_oil_price || ''} onChange={e => calcEngineOil(form.engine_oil_litres, Number(e.target.value))} /></div>
+            <div className="form-group"><label>Engine oil cost (Rs)</label><input readOnly value={form.engine_oil_cost || ''} style={{ fontFamily: 'var(--mono)' }} /></div>
             <div className="form-group"><label>Other expenses (Rs)</label><input type="number" value={form.other_exp || ''} onChange={e => set('other_exp', Number(e.target.value))} /></div>
             <div className="form-group full"><label>Other expense notes</label><input value={form.other_notes} onChange={e => set('other_notes', e.target.value)} placeholder="Describe any other expenses" /></div>
 
@@ -249,7 +235,7 @@ export default function TripModal({ trip, onClose }: Props) {
                 <tbody>
                   {dieselRows.map((row, i) => (
                     <tr key={i}>
-                      <td><input type="date" value={row.date} style={{ minWidth: 120 }} onChange={e => updateDieselRow(i, 'date', e.target.value)} /></td>
+                      <td><input type="text" value={toDisplay(row.date)} style={{ minWidth: 110 }} placeholder="dd/mm/yyyy" onChange={e => updateDieselRow(i, 'date', toISO(e.target.value))} /></td>
                       <td>
                         <select value={row.supplier} style={{ minWidth: 120 }} onChange={e => updateDieselRow(i, 'supplier', e.target.value)}>
                           <option value="">— supplier —</option>
@@ -271,14 +257,28 @@ export default function TripModal({ trip, onClose }: Props) {
             <div className="form-group"><label>Diesel average (km/ltr)</label><input readOnly value={form.diesel_avg} style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }} /></div>
             <div className="form-group"><label>Total diesel cost (Rs)</label><input readOnly value={form.diesel_cost || ''} style={{ fontFamily: 'var(--mono)' }} /></div>
 
+            <div className="form-section">LPG</div>
+            <div className="form-group"><label>Weight lifted (kg)</label><input type="number" value={form.lifted || ''} onChange={e => calcLpgDiff(Number(e.target.value), form.delivered)} /></div>
+            <div className="form-group"><label>Weight delivered (kg)</label><input type="number" value={form.delivered || ''} onChange={e => calcLpgDiff(form.lifted, Number(e.target.value))} /></div>
+            <div className="form-group"><label>Gain / loss (kg)</label>
+              <input readOnly value={form.lpg_diff} style={{ fontFamily: 'var(--mono)', color: form.lpg_diff.startsWith('+') ? 'var(--green)' : form.lpg_diff.startsWith('-') ? 'var(--red)' : 'var(--text)' }} />
+            </div>
+            <div className="form-group">
+              <label>Gain/loss billed to client?</label>
+              <select value={form.lpg_bill} onChange={e => set('lpg_bill', e.target.value)}>
+                <option value="absorbed">Absorbed by us</option>
+                <option value="billed">Billed to client</option>
+              </select>
+            </div>
+            <div className="form-group"><label>Rent/MT (Rs)</label><input type="number" value={form.lpg_rent_mt || ''} onChange={e => setLpgRentMt(Number(e.target.value))} /></div>
+            <div className="form-group"><label>Total rent (Rs)</label><input readOnly value={form.lpg_rent_total ? form.lpg_rent_total.toFixed(2) : ''} style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }} /></div>
+
             <div className="form-section">Trip P&amp;L summary</div>
             <div className="form-group full">
               <div className="cost-card">
-                <div className="cost-row"><span className="cost-label">Trip billed</span><span className="cost-val">{rs(form.billed)}</span></div>
+                <div className="cost-row"><span className="cost-label">LPG rent income</span><span className="cost-val">{rs(form.lpg_rent_total)}</span></div>
                 <div className="cost-row"><span className="cost-label">Total expenses</span><span className="cost-val" style={{ color: 'var(--red)' }}>{rs(totalExp)}</span></div>
                 <div className={`cost-row ${pl >= 0 ? 'profit' : 'loss'}`}><span className="cost-label">Net P/L</span><span>{rs(pl)}</span></div>
-                <div className="cost-row"><span className="cost-label">Peshgi given</span><span className="cost-val">{rs(form.peshgi)}</span></div>
-                <div className="cost-row"><span className="cost-label">Receivable from client</span><span className="cost-val" style={{ color: 'var(--blue)' }}>{rs(recv)}</span></div>
               </div>
             </div>
 

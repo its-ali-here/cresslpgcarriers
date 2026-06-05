@@ -1,34 +1,18 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { useApp } from '@/context/AppContext';
-import type { AppDB } from '@/lib/types';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 
 export default function Topbar() {
-  const { exportData, importData } = useApp();
   const [dateStr, setDateStr] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const d = new Date();
     setDateStr(d.toLocaleDateString('en-PK', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }));
   }, []);
 
-  function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    const r = new FileReader();
-    r.onload = async ev => {
-      try {
-        const data = JSON.parse(ev.target?.result as string) as AppDB;
-        await importData(data);
-        alert('Backup restored.');
-      } catch {
-        alert('Invalid backup file.');
-      }
-    };
-    r.readAsText(f);
-    e.target.value = '';
+  async function handleSignOut() {
+    await supabase.auth.signOut();
   }
 
   return (
@@ -44,14 +28,12 @@ export default function Topbar() {
         </div>
         <div>
           <div className="brand-name">CRESS LPG CARRIERS</div>
-          <div className="brand-sub">Business Management System</div>
+          <div className="brand-sub">Logistics Management System</div>
         </div>
       </div>
       <div className="topbar-actions">
         <span className="topbar-date">{dateStr}</span>
-        <button className="btn btn-sm" onClick={exportData}>⬇ Export backup</button>
-        <button className="btn btn-sm" onClick={() => fileRef.current?.click()}>⬆ Import backup</button>
-        <input ref={fileRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
+        <button className="btn btn-sm" onClick={handleSignOut}>Sign out</button>
       </div>
     </div>
   );

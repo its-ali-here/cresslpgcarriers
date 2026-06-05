@@ -35,8 +35,6 @@ interface AppContextValue extends AppDB {
   updateSettings: (s: Settings) => Promise<void>;
   // Helpers
   getPartyBalance: (partyId: string) => number;
-  exportData: () => void;
-  importData: (data: AppDB) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -210,29 +208,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return bal;
   }, [state.parties, state.transactions]);
 
-  const exportData = useCallback(() => {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `cress_lpg_backup_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-  }, [state]);
-
-  const importData = useCallback(async (data: AppDB) => {
-    await Promise.all([
-      ...data.trips.map(db.upsertTrip),
-      ...data.parties.map(db.upsertParty),
-      ...data.expenses.map(db.upsertExpense),
-      ...data.peshgi.map(db.upsertPeshgi),
-      ...data.fleet.map(db.upsertFleet),
-      ...data.drivers.map(db.upsertDriver),
-      ...data.compliance.map(db.upsertCompliance),
-      db.saveSettings(data.settings),
-    ]);
-    const fresh = await db.fetchAll();
-    setState(fresh);
-  }, []);
-
   return (
     <AppContext.Provider value={{
       ...state, loading,
@@ -246,7 +221,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       saveCompliance, deleteCompliance,
       updateSettings,
       getPartyBalance,
-      exportData, importData,
     }}>
       {children}
     </AppContext.Provider>

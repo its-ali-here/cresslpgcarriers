@@ -26,6 +26,8 @@ export interface Trip {
   delivered: number;
   lpg_diff: string;
   lpg_bill: string;
+  lpg_rent_mt: number;
+  lpg_rent_total: number;
   billed: number;
   peshgi: number;
   status: string;
@@ -42,6 +44,9 @@ export interface Trip {
   motorway: number;
   grease: number;
   air: number;
+  engine_oil_litres: number;
+  engine_oil_price: number;
+  engine_oil_cost: number;
   other_exp: number;
   other_notes: string;
   delay_reason: string;
@@ -109,6 +114,9 @@ export interface FleetItem {
   status: string;
   service: string;
   notes: string;
+  bowser_make: string;
+  bowser_no: string;
+  axles: number;
 }
 
 export interface Driver {

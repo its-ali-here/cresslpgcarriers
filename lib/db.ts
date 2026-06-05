@@ -4,6 +4,15 @@ import type {
   FleetItem, Driver, ComplianceDoc, Settings, AppDB,
 } from './types';
 
+// Convert empty strings to null for date columns so Postgres doesn't reject them.
+function nullDates(obj: Record<string, unknown>, fields: string[]): Record<string, unknown> {
+  const out = { ...obj };
+  for (const f of fields) {
+    if (out[f] === '' || out[f] === undefined) out[f] = null;
+  }
+  return out;
+}
+
 // ---- TRIPS ----
 function mapTrip(row: Record<string, unknown>): Trip {
   const { from_location, to_location, ...rest } = row as Record<string, unknown>;
@@ -21,7 +30,8 @@ export async function fetchTrips(): Promise<Trip[]> {
   return (data || []).map(mapTrip);
 }
 export async function upsertTrip(trip: Trip): Promise<void> {
-  const { error } = await supabase.from('trips').upsert(unmapTrip(trip));
+  const row = nullDates(unmapTrip(trip), ['load_date', 'offload_date']);
+  const { error } = await supabase.from('trips').upsert(row);
   if (error) throw error;
 }
 export async function deleteTrip(id: string): Promise<void> {
@@ -61,7 +71,8 @@ export async function fetchTransactions(): Promise<Transaction[]> {
   return (data || []).map(mapTxn);
 }
 export async function insertTransaction(txn: Transaction): Promise<void> {
-  const { error } = await supabase.from('transactions').insert(unmapTxn(txn));
+  const row = nullDates(unmapTxn(txn), ['date']);
+  const { error } = await supabase.from('transactions').insert(row);
   if (error) throw error;
 }
 export async function deleteTransaction(id: string): Promise<void> {
@@ -77,7 +88,7 @@ export async function fetchExpenses(): Promise<Expense[]> {
   return (data || []) as Expense[];
 }
 export async function upsertExpense(expense: Expense): Promise<void> {
-  const { error } = await supabase.from('expenses').upsert(expense);
+  const { error } = await supabase.from('expenses').upsert(nullDates(expense as unknown as Record<string, unknown>, ['date']));
   if (error) throw error;
 }
 export async function deleteExpense(id: string): Promise<void> {
@@ -93,7 +104,7 @@ export async function fetchPeshgi(): Promise<PeshgiEntry[]> {
   return (data || []) as PeshgiEntry[];
 }
 export async function upsertPeshgi(entry: PeshgiEntry): Promise<void> {
-  const { error } = await supabase.from('peshgi').upsert(entry);
+  const { error } = await supabase.from('peshgi').upsert(nullDates(entry as unknown as Record<string, unknown>, ['date']));
   if (error) throw error;
 }
 export async function deletePeshgi(id: string): Promise<void> {
@@ -108,7 +119,7 @@ export async function fetchFleet(): Promise<FleetItem[]> {
   return (data || []) as FleetItem[];
 }
 export async function upsertFleet(item: FleetItem): Promise<void> {
-  const { error } = await supabase.from('fleet').upsert(item);
+  const { error } = await supabase.from('fleet').upsert(nullDates(item as unknown as Record<string, unknown>, ['service']));
   if (error) throw error;
 }
 export async function deleteFleet(id: string): Promise<void> {
@@ -123,7 +134,7 @@ export async function fetchDrivers(): Promise<Driver[]> {
   return (data || []) as Driver[];
 }
 export async function upsertDriver(driver: Driver): Promise<void> {
-  const { error } = await supabase.from('drivers').upsert(driver);
+  const { error } = await supabase.from('drivers').upsert(nullDates(driver as unknown as Record<string, unknown>, ['lic_exp']));
   if (error) throw error;
 }
 export async function deleteDriver(id: string): Promise<void> {
@@ -139,7 +150,7 @@ export async function fetchCompliance(): Promise<ComplianceDoc[]> {
   return (data || []) as ComplianceDoc[];
 }
 export async function upsertCompliance(doc: ComplianceDoc): Promise<void> {
-  const { error } = await supabase.from('compliance').upsert(doc);
+  const { error } = await supabase.from('compliance').upsert(nullDates(doc as unknown as Record<string, unknown>, ['issue', 'expiry']));
   if (error) throw error;
 }
 export async function deleteCompliance(id: string): Promise<void> {

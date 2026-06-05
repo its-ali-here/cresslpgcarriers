@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRESS LPG Carriers — Business Management</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Logistics / freight palette: steel blue-grey base, hi-vis amber accent */
+  --bg: #f4f5f7;
+  --bg2: #ffffff;
+  --bg3: #eceef1;
+  --bg4: #e2e5ea;
+  --border: #d4d8de;
+  --border2: #c2c7cf;
+  --text: #1a2230;
+  --text2: #5a6473;
+  --text3: #8b95a3;
+  --accent: #f5a623;          /* hi-vis amber */
+  --accent2: #d98c0c;
+  --navy: #1c2b45;            /* freight navy */
+  --navy2: #243a5e;
+  --steel: #3d5170;
+  --green: #2e9e5b;
+  --red: #d64545;
+  --blue: #2f6fb5;
+  --orange: #e87722;
+  --font: 'Barlow', sans-serif;
+  --display: 'Oswald', sans-serif;
+  --cond: 'Barlow Semi Condensed', sans-serif;
+  --mono: 'Roboto Mono', monospace;
+  --radius: 4px;
+  --radius2: 6px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+.cost-row.total, .cost-row.profit, .cost-row.loss { font-family: var(--display); }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* TOPBAR */
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 0 1.25rem; height: 56px; background: var(--navy); flex-shrink: 0; border-bottom: 3px solid var(--accent); }
+.topbar-brand { display: flex; align-items: center; gap: 12px; }
+.brand-mark { width: 38px; height: 38px; background: var(--accent); border-radius: 3px; display: flex; align-items: center; justify-content: center; font-family: var(--display); font-size: 13px; font-weight: 700; color: var(--navy); letter-spacing: 0px; }
+.brand-name { font-family: var(--display); font-size: 17px; font-weight: 600; letter-spacing: 0.08em; color: #fff; text-transform: uppercase; }
+.brand-sub { font-size: 10px; color: #9fb0c9; font-family: var(--cond); letter-spacing: 0.12em; text-transform: uppercase; font-weight: 500; }
+.topbar-actions { display: flex; gap: 8px; align-items: center; }
+.topbar-date { font-size: 11px; color: #9fb0c9; font-family: var(--mono); margin-right: 8px; }
+.topbar .btn { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: #fff; }
+.topbar .btn:hover { background: var(--accent); border-color: var(--accent); color: var(--navy); }
+
+/* LAYOUT */
+.layout { display: flex; flex: 1; overflow: hidden; }
+
+/* SIDEBAR */
+.sidebar { width: 210px; min-width: 210px; background: var(--navy); overflow-y: auto; padding: 0.5rem 0; }
+.nav-section { margin-bottom: 0.5rem; }
+.nav-section-label { font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: #6b7d99; padding: 0.7rem 1.1rem 0.35rem; text-transform: uppercase; font-family: var(--cond); }
+.nav-item { display: flex; align-items: center; gap: 11px; padding: 9px 1.1rem; cursor: pointer; font-size: 14px; color: #c3cedd; transition: all 0.12s; border-left: 3px solid transparent; font-family: var(--cond); font-weight: 500; letter-spacing: 0.02em; }
+.nav-item:hover { color: #fff; background: rgba(255,255,255,0.05); }
+.nav-item.active { color: #fff; background: var(--steel); border-left-color: var(--accent); font-weight: 600; }
+.nav-item svg { width: 17px; height: 17px; flex-shrink: 0; opacity: 0.75; }
+.nav-item.active svg { opacity: 1; stroke: var(--accent); }
+
+/* MAIN */
+.main { flex: 1; overflow-y: auto; background: var(--bg); }
+.section-label { font-family: var(--cond) !important; color: var(--steel) !important; }
+.page { display: none; padding: 1.5rem; min-height: 100%; }
+.page.active { display: block; }
+
+/* PAGE HEADER */
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.5rem; }
+.page-title { font-family: var(--display); font-size: 26px; font-weight: 600; color: var(--navy); text-transform: uppercase; letter-spacing: 0.02em; }
+.page-sub { font-size: 12px; color: var(--text3); margin-top: 0px; font-family: var(--cond); text-transform: uppercase; letter-spacing: 0.08em; }
+.header-actions { display: flex; gap: 8px; }
+
+/* BUTTONS */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 15px; border-radius: var(--radius); border: 1px solid var(--border2); background: var(--bg2); color: var(--navy); font-size: 12px; font-family: var(--cond); cursor: pointer; transition: all 0.12s; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.btn:hover { background: var(--bg3); border-color: var(--steel); }
+.btn-primary { background: var(--accent); border-color: var(--accent2); color: var(--navy); font-weight: 600; }
+.btn-primary:hover { background: var(--accent2); border-color: var(--accent2); color: var(--navy); }
+.btn-sm { padding: 4px 10px; font-size: 11px; }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--text3); }
+.btn-ghost:hover { background: var(--bg3); border-color: var(--border); color: var(--text); }
+.btn-danger { background: rgba(224,85,85,0.12); border-color: rgba(224,85,85,0.3); color: var(--red); }
+.btn-danger:hover { background: rgba(224,85,85,0.2); }
+
+/* METRICS */
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+.metric { background: var(--bg2); border: 1px solid var(--border); border-left: 4px solid var(--steel); border-radius: var(--radius2); padding: 0.85rem 1.1rem; }
+.metric-label { font-size: 11px; color: var(--text2); font-family: var(--cond); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; font-weight: 600; }
+.metric-value { font-size: 24px; font-weight: 600; color: var(--navy); font-family: var(--display); }
+.metric-value.green { color: var(--green); }
+.metric-value.red { color: var(--red); }
+.metric-value.gold { color: var(--accent2); }
+.metric-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+/* TABLE */
+.table-wrap { border: 1px solid var(--border); border-radius: var(--radius2); overflow: hidden; background: var(--bg2); }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 600; color: #c3cedd; background: var(--navy); border-bottom: none; text-transform: uppercase; letter-spacing: 0.07em; font-family: var(--cond); white-space: nowrap; }
+td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tbody tr:nth-child(even) td { background: var(--bg3); }
+tr:hover td { background: #fff7e8; }
+.mono { font-family: var(--mono); }
+
+/* BADGES */
+.badge { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: var(--radius); font-size: 10px; font-weight: 600; font-family: var(--cond); letter-spacing: 0.05em; text-transform: uppercase; border: 1px solid transparent; }
+.badge-green { background: #e3f3e9; color: #1d6b3c; border-color: #b8e0c6; }
+.badge-red { background: #fae3e3; color: #a82f2f; border-color: #f0c0c0; }
+.badge-yellow { background: #fdf0d5; color: #9a6608; border-color: #f5dba0; }
+.badge-blue { background: #e2eefb; color: #1f4f8a; border-color: #bcd6f0; }
+.badge-gray { background: var(--bg3); color: var(--text2); border-color: var(--border); }
+.badge-orange { background: #fbe8d8; color: #b5571a; border-color: #f2cba8; }
+
+/* MODAL */
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; padding: 1rem; }
+.modal-bg.open { display: flex; }
+.modal { background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius2); width: 620px; max-width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 12px 48px rgba(28,43,69,0.25); }
+.modal-wide { width: 860px; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 2px solid var(--accent); background: var(--bg3); }
+.modal-title { font-family: var(--display); font-size: 18px; font-weight: 600; color: var(--navy); text-transform: uppercase; letter-spacing: 0.02em; }
+.modal-body { padding: 1.25rem; }
+.modal-footer { padding: 1rem 1.25rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+
+/* FORMS */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group.full { grid-column: 1 / -1; }
+label { font-size: 11px; font-weight: 600; color: var(--steel); text-transform: uppercase; letter-spacing: 0.06em; font-family: var(--cond); }
+input, select, textarea { background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius); padding: 8px 10px; color: var(--text); font-size: 13px; font-family: var(--font); width: 100%; transition: border-color 0.12s; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+textarea { resize: vertical; min-height: 64px; }
+select option { background: var(--bg3); }
+input[type="number"] { font-family: var(--mono); }
+.form-section { font-size: 13px; font-weight: 600; color: var(--navy); text-transform: uppercase; letter-spacing: 0.06em; font-family: var(--display); padding: 0.85rem 0 0.5rem; border-top: 2px solid var(--accent); margin-top: 0.5rem; grid-column: 1 / -1; }
+.form-section:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+
+/* DIESEL TABLE inside trip form */
+.diesel-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px; }
+.diesel-table th { background: var(--bg); padding: 6px 8px; font-size: 10px; color: var(--text3); font-family: var(--mono); text-transform: uppercase; border-bottom: 1px solid var(--border); text-align: left; }
+.diesel-table td { padding: 4px 4px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.diesel-table td input, .diesel-table td select { padding: 5px 7px; font-size: 12px; }
+.diesel-table tr:last-child td { border-bottom: none; }
+
+/* LEDGER */
+.ledger-header { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius2); padding: 1rem 1.25rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; }
+.ledger-balance { font-size: 26px; font-weight: 600; font-family: var(--display); }
+.ledger-balance.dr { color: var(--red); }
+.ledger-balance.cr { color: var(--green); }
+
+/* EMPTY STATE */
+.empty { text-align: center; padding: 3rem 1rem; color: var(--text3); font-size: 13px; }
+.empty-icon { font-size: 28px; margin-bottom: 0.5rem; opacity: 0.4; }
+
+/* TABS */
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 1.25rem; }
+.tab { padding: 8px 16px; font-size: 12px; font-weight: 500; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.12s; }
+.tab:hover { color: var(--text); }
+.tab { font-family: var(--cond); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+.tab.active { color: var(--navy); border-bottom-color: var(--accent); }
+
+/* SECTION DIVIDER */
+.section-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; font-family: var(--mono); margin: 1.25rem 0 0.75rem; }
+
+/* ACTION BUTTONS in table */
+.row-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.12s; }
+tr:hover .row-actions { opacity: 1; }
+
+/* ALERT BANNER */
+.alert-banner { background: rgba(224,85,85,0.1); border: 1px solid rgba(224,85,85,0.3); border-radius: var(--radius); padding: 0.6rem 1rem; font-size: 12px; color: var(--red); margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; }
+
+/* TRIP COSTING SUMMARY */
+.cost-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.cost-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius2); padding: 1rem; }
+.cost-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 12.5px; }
+.cost-row:last-child { border-bottom: none; }
+.cost-row.total { font-weight: 600; color: var(--accent); font-family: var(--mono); }
+.cost-row.profit { font-weight: 600; color: var(--green); font-family: var(--mono); font-size: 14px; }
+.cost-row.loss { font-weight: 600; color: var(--red); font-family: var(--mono); font-size: 14px; }
+.cost-label { color: var(--text2); }
+.cost-val { font-family: var(--mono); color: var(--text); }
+
+/* SETTINGS */
+.settings-section { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius2); padding: 1.25rem; margin-bottom: 1rem; }
+.settings-title { font-size: 16px; font-weight: 600; color: var(--navy); margin-bottom: 1rem; font-family: var(--display); text-transform: uppercase; letter-spacing: 0.03em; border-left: 4px solid var(--accent); padding-left: 10px; }
+
+/* BACKUP BANNER */
+.backup-bar { background: var(--navy); border-top: 2px solid var(--accent); padding: 7px 1.25rem; display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #c3cedd; flex-shrink: 0; font-family: var(--cond); letter-spacing: 0.03em; }
+.backup-bar strong { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:22px;height:22px"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>
+    <div>
+      <div class="brand-name">CRESS LPG CARRIERS</div>
+      <div class="brand-sub">Business Management System</div>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <span class="topbar-date" id="top-date"></span>
+    <button class="btn btn-sm" onclick="exportData()">⬇ Export backup</button>
+    <button class="btn btn-sm" onclick="document.getElementById('import-file').click()">⬆ Import backup</button>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+  </div>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="nav-section">
+      <div class="nav-section-label">Overview</div>
+      <div class="nav-item active" onclick="showPage('dashboard')" data-page="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">Operations</div>
+      <div class="nav-item" onclick="showPage('trips')" data-page="trips">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 12l4-4M3 12l4 4M21 12l-4-4M21 12l-4 4"/></svg>
+        Trip log
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">Ledgers</div>
+      <div class="nav-item" onclick="showPage('clients')" data-page="clients">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 3H8L6 7h12l-2-4z"/></svg>
+        Clients
+      </div>
+      <div class="nav-item" onclick="showPage('fuel-suppliers')" data-page="fuel-suppliers">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 22V8l9-6 9 6v14"/><path d="M9 22V12h6v10"/></svg>
+        Fuel suppliers
+      </div>
+      <div class="nav-item" onclick="showPage('vendors')" data-page="vendors">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        Vendors / parts
+      </div>
+      <div class="nav-item" onclick="showPage('expenses')" data-page="expenses">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        General expenses
+      </div>
+      <div class="nav-item" onclick="showPage('peshgi')" data-page="peshgi">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        Peshgi ledger
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">Fleet & HR</div>
+      <div class="nav-item" onclick="showPage('fleet')" data-page="fleet">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        Fleet
+      </div>
+      <div class="nav-item" onclick="showPage('drivers')" data-page="drivers">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Drivers
+      </div>
+      <div class="nav-item" onclick="showPage('compliance')" data-page="compliance">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Compliance
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">Reports</div>
+      <div class="nav-item" onclick="showPage('reports')" data-page="reports">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Reports
+      </div>
+      <div class="nav-item" onclick="showPage('settings')" data-page="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        Settings
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div><div class="page-title">Dashboard</div><div class="page-sub" id="dash-sub"></div></div>
+      </div>
+      <div class="metrics" id="dash-metrics"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
+        <div>
+          <div class="section-label">Recent trips</div>
+          <div class="table-wrap"><table><thead><tr><th>Trip #</th><th>Vehicle</th><th>Route</th><th>Amount</th><th>Net P/L</th></tr></thead><tbody id="dash-trips-tbody"></tbody></table></div>
+        </div>
+        <div>
+          <div class="section-label">Alerts</div>
+          <div id="dash-alerts"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRIPS -->
+    <div class="page" id="page-trips">
+      <div class="page-header">
+        <div><div class="page-title">Trip log</div><div class="page-sub">yard → loading → unloading → yard</div></div>
+        <div class="header-actions"><button class="btn btn-primary" onclick="openTripModal()">+ New trip</button></div>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Trip #</th><th>Load date</th><th>Vehicle</th><th>Driver</th><th>Route</th><th>LPG (kg)</th><th>Days</th><th>Billed</th><th>Expenses</th><th>P/L</th><th>Status</th><th></th></tr></thead>
+        <tbody id="trips-tbody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- CLIENTS -->
+    <div class="page" id="page-clients">
+      <div class="page-header">
+        <div><div class="page-title">Client ledgers</div><div class="page-sub">receivables & payment tracking</div></div>
+        <div class="header-actions"><button class="btn btn-primary" onclick="openPartyModal('client')">+ Add client</button></div>
+      </div>
+      <div id="clients-list"></div>
+    </div>
+
+    <!-- FUEL SUPPLIERS -->
+    <div class="page" id="page-fuel-suppliers">
+      <div class="page-header">
+        <div><div class="page-title">Fuel supplier ledgers</div><div class="page-sub">diesel purchases & payments</div></div>
+        <div class="header-actions"><button class="btn btn-primary" onclick="openPartyModal('fuel')">+ Add supplier</button></div>
+      </div>
+      <div id="fuel-list"></div>
+    </div>
+
+    <!-- VENDORS -->
+    <div class="page" id="page-vendors">
+      <div class="page-header">
+        <div><div class="page-title">Vendor / parts ledgers</div><div class="page-sub">workshops, parts suppliers, services</div></div>
+        <div class="header-actions"><button class="btn btn-primary" onclick="openPartyModal('vendor')">+ Add vendor</button></div>
+      </div>
+      <div id="vendors-list"></div>
+    </div>
+
+    <!-- GENERAL EXPENSES -->
+    <div class="page" id="page-expenses">
+      <div class="page-header">
+        <div><div class="page-title">General expenses</div><div class="page-sub">salaries, rent, fixed overheads</div></div>
+        <div class="header-actions"><button class="btn btn-primary" onclick="openExpenseModal()">+ Add expense</button></div>
+      </div>
+      <div class="metrics" id="exp-metrics"></div>
+      <div class="table-wrap"><table><thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th>Ref</th><th></th></tr></thead><tbody id="expenses-tbody"></tbody></table></div>
+    </div>
+
+    <!-- PESHGI -->
+    <div class="page" id="page-peshgi">
+      <div class="page-header">
+        <div><div class="page-title">Peshgi ledger</div><div class="page-sub">driver advances & salary settlements</div></div>
+        <div class="header-actions"><button class="btn btn-primary" onclick="openPeshgiModal()">+ Record transaction</button></div>
+      </div>
+      <div id="peshgi-list"></div>
+    </div>
+
+    <!-- FLEET -->
+    <div class="page" id="page-fleet">
+      <div class="page-header">
+        <div><div class="page-title">Fleet registry</div></div>
+        <div class="header-actions"><button class="btn btn-primary" onclick="openFleetModal()">+ Add bowser</button></div>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Reg no.</th><th>Make / model</th><th>Capacity (kg)</th><th>Year</th><th>Status</th><th>Last service</th><th>Notes</th><th></th></tr></thead><tbody id="fleet-tbody"></tbody></table></div>
+    </div>
+
+    <!-- DRIVERS -->
+    <div class="page" id="page-drivers">
+      <div class="page-header">
+        <div><div class="page-title">Drivers & helpers</div></div>
+        <div class="header-actions"><button class="btn btn-primary" onclick="openDriverModal()">+ Add person</button></div>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Name</th><th>Role</th><th>CNIC</th><th>License</th><th>License expiry</th><th>Phone</th><th>Daily rate (Rs)</th><th>Status</th><th></th></tr></thead><tbody id="drivers-tbody"></tbody></table></div>
+    </div>
+
+    <!-- COMPLIANCE -->
+    <div class="page" id="page-compliance">
+      <div class="page-header">
+        <div><div class="page-title">Compliance documents</div></div>
+        <div class="header-actions"><button class="btn btn-primary" onclick="openCompModal()">+ Add document</button></div>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Vehicle / item</th><th>Document type</th><th>Ref no.</th><th>Issue date</th><th>Expiry</th><th>Days left</th><th>Status</th><th></th></tr></thead><tbody id="comp-tbody"></tbody></table></div>
+    </div>
+
+    <!-- REPORTS -->
+    <div class="page" id="page-reports">
+      <div class="page-header"><div class="page-title">Reports</div></div>
+      <div class="tabs">
+        <div class="tab active" onclick="showReport('pl')" data-report="pl">P&L Summary</div>
+        <div class="tab" onclick="showReport('trips-report')" data-report="trips-report">Trip costing</div>
+        <div class="tab" onclick="showReport('receivables')" data-report="receivables">Receivables</div>
+        <div class="tab" onclick="showReport('payables')" data-report="payables">Payables</div>
+        <div class="tab" onclick="showReport('diesel')" data-report="diesel">Diesel analysis</div>
+      </div>
+      <div id="report-content"></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <div class="page-header"><div class="page-title">Settings</div></div>
+      <div class="settings-section">
+        <div class="settings-title">Company</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Company name</label><input id="s-company" placeholder="CRESS LPG CARRIERS"></div>
+          <div class="form-group"><label>Yard / base location</label><input id="s-yard" placeholder="e.g. Sardargarh"></div>
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-title">Trip defaults</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Driver daily allowance (Rs)</label><input id="s-driver-daily" type="number" placeholder="e.g. 1200"></div>
+          <div class="form-group"><label>Helper daily allowance (Rs)</label><input id="s-helper-daily" type="number" placeholder="e.g. 800"></div>
+          <div class="form-group"><label>Default expected trip days</label><input id="s-trip-days" type="number" placeholder="e.g. 7"></div>
+          <div class="form-group"><label>Diesel benchmark (km/litre)</label><input id="s-diesel-bench" type="number" step="0.1" placeholder="e.g. 2.6"></div>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="saveSettings()">Save settings</button>
+    </div>
+
+  </div>
+</div>
+
+<div class="backup-bar">
+  <span>⚠ Data is saved to your browser. Use <strong>Export backup</strong> regularly and save to USB or Google Drive.</span>
+  <span id="last-saved" style="font-family:var(--mono)"></span>
+</div>
+
+<!-- ===================== MODALS ===================== -->
+
+<!-- TRIP MODAL -->
+<div class="modal-bg" id="trip-modal">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div class="modal-title" id="trip-modal-title">New trip</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('trip-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="tm-id">
+      <div class="form-grid">
+        <div class="form-section">Trip info</div>
+        <div class="form-group"><label>Trip / load no.</label><input id="tm-no" placeholder="e.g. 001"></div>
+        <div class="form-group"><label>Month</label><input id="tm-month" placeholder="e.g. Feb 2026"></div>
+        <div class="form-group"><label>Load date</label><input id="tm-load-date" type="date"></div>
+        <div class="form-group"><label>Off-load date</label><input id="tm-offload-date" type="date"></div>
+        <div class="form-group"><label>Vehicle (reg no.)</label><select id="tm-vehicle"></select></div>
+        <div class="form-group"><label>Driver</label><select id="tm-driver"></select></div>
+        <div class="form-group"><label>Helper</label><select id="tm-helper"></select></div>
+        <div class="form-group"><label>Client</label><select id="tm-client"></select></div>
+        <div class="form-section">Route</div>
+        <div class="form-group"><label>From (loading point)</label><input id="tm-from" placeholder="e.g. Karachi Port"></div>
+        <div class="form-group"><label>To (unloading point)</label><input id="tm-to" placeholder="e.g. Faisalabad"></div>
+        <div class="form-group"><label>Distance (km)</label><input id="tm-km" type="number"></div>
+        <div class="form-group"><label>Expected days</label><input id="tm-exp-days" type="number" oninput="calcOverDays()"></div>
+        <div class="form-group"><label>Actual days</label><input id="tm-act-days" type="number" oninput="calcOverDays()"></div>
+        <div class="form-group"><label>Over days</label><input id="tm-over-days" type="number" readonly style="color:var(--accent)"></div>
+        <div class="form-section">LPG</div>
+        <div class="form-group"><label>Weight lifted (kg)</label><input id="tm-lifted" type="number" oninput="calcLpgDiff()"></div>
+        <div class="form-group"><label>Weight delivered (kg)</label><input id="tm-delivered" type="number" oninput="calcLpgDiff()"></div>
+        <div class="form-group"><label>Gain / loss (kg)</label><input id="tm-lpg-diff" readonly style="font-family:var(--mono)"></div>
+        <div class="form-group"><label>Gain/loss billed to client?</label><select id="tm-lpg-bill"><option value="absorbed">Absorbed by us</option><option value="billed">Billed to client</option></select></div>
+        <div class="form-section">Billing</div>
+        <div class="form-group"><label>Trip amount billed (Rs)</label><input id="tm-billed" type="number" oninput="calcTripPL()"></div>
+        <div class="form-group"><label>Peshgi given (Rs)</label><input id="tm-peshgi" type="number" oninput="calcTripPL()"></div>
+        <div class="form-group"><label>Status</label><select id="tm-status"><option>Completed</option><option>In progress</option><option>Cancelled</option></select></div>
+        <div class="form-section">Trip expenses</div>
+        <div class="form-group"><label>Toll / tolpalaza (Rs)</label><input id="tm-toll" type="number" oninput="calcTripPL()"></div>
+        <div class="form-group"><label>Driver daily allowance (Rs) <span style="color:var(--text3);font-size:10px" id="tm-driver-calc"></span></label><input id="tm-driver-exp" type="number" oninput="calcTripPL()"></div>
+        <div class="form-group"><label>Helper daily allowance (Rs) <span style="color:var(--text3);font-size:10px" id="tm-helper-calc"></span></label><input id="tm-helper-exp" type="number" oninput="calcTripPL()"></div>
+        <div class="form-group"><label>Over-days extra cost (Rs)</label><input id="tm-overday-cost" type="number" oninput="calcTripPL()" placeholder="auto-calc"></div>
+        <div class="form-group"><label>Motorway chalan (Rs)</label><input id="tm-chalan" type="number" oninput="calcTripPL()"></div>
+        <div class="form-group"><label>Chalan responsibility</label><select id="tm-chalan-resp"><option value="">N/A</option><option value="company">Company</option><option value="driver">Deduct from driver</option></select></div>
+        <div class="form-group"><label>Tyre bill (Rs)</label><input id="tm-tyre" type="number" oninput="calcTripPL()"></div>
+        <div class="form-group"><label>Load / unload (Rs)</label><input id="tm-loadunload" type="number" oninput="calcTripPL()"></div>
+        <div class="form-group"><label>Weighbridge / manshana (Rs)</label><input id="tm-weigh" type="number" oninput="calcTripPL()"></div>
+        <div class="form-group"><label>Excise + PP (Rs)</label><input id="tm-excise" type="number" oninput="calcTripPL()"></div>
+        <div class="form-group"><label>Motorway / chalan extra (Rs)</label><input id="tm-motorway" type="number" oninput="calcTripPL()"></div>
+        <div class="form-group"><label>Greasing / service (Rs)</label><input id="tm-grease" type="number" oninput="calcTripPL()"></div>
+        <div class="form-group"><label>Air check (Rs)</label><input id="tm-air" type="number" oninput="calcTripPL()"></div>
+        <div class="form-group"><label>Other expenses (Rs)</label><input id="tm-other-exp" type="number" oninput="calcTripPL()"></div>
+        <div class="form-group full"><label>Other expense notes</label><input id="tm-other-notes" placeholder="Describe any other expenses"></div>
+        <div class="form-section">Over-days reason</div>
+        <div class="form-group"><label>Reason for delay</label><select id="tm-delay-reason"><option value="">None</option><option>Traffic / road conditions</option><option>Loading delay</option><option>Unloading delay</option><option>Vehicle breakdown</option><option>Weather</option><option>Administrative / documentation</option><option>Other</option></select></div>
+        <div class="form-group"><label>Delay notes</label><input id="tm-delay-notes"></div>
+        <div class="form-section">Diesel log</div>
+        <div class="form-group"><label>Opening diesel stock (ltr)</label><input id="tm-diesel-open" type="number" oninput="calcDiesel()"></div>
+        <div class="form-group"><label>Closing diesel stock (ltr)</label><input id="tm-diesel-close" type="number" oninput="calcDiesel()"></div>
+        <div class="form-group full">
+          <label>Diesel purchases</label>
+          <table class="diesel-table">
+            <thead><tr><th>Date</th><th>Supplier</th><th>Litres</th><th>Price/ltr (Rs)</th><th>Amount (Rs)</th><th></th></tr></thead>
+            <tbody id="diesel-rows"></tbody>
+          </table>
+          <button class="btn btn-sm" style="margin-top:6px" onclick="addDieselRow()">+ Add purchase</button>
+        </div>
+        <div class="form-group"><label>Total diesel purchased (ltr)</label><input id="tm-diesel-total" readonly style="font-family:var(--mono)"></div>
+        <div class="form-group"><label>Total diesel consumed (ltr)</label><input id="tm-diesel-consumed" readonly style="font-family:var(--mono)"></div>
+        <div class="form-group"><label>Diesel average (km/ltr)</label><input id="tm-diesel-avg" readonly style="font-family:var(--mono);color:var(--accent)"></div>
+        <div class="form-group"><label>Total diesel cost (Rs)</label><input id="tm-diesel-cost" readonly style="font-family:var(--mono)" oninput="calcTripPL()"></div>
+        <div class="form-section">Trip P&L summary</div>
+        <div class="form-group full" id="trip-pl-summary"></div>
+        <div class="form-group full"><label>Notes</label><textarea id="tm-notes"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('trip-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTrip()">Save trip</button>
+    </div>
+  </div>
+</div>
+
+<!-- PARTY MODAL (clients, suppliers, vendors) -->
+<div class="modal-bg" id="party-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="party-modal-title">Add party</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('party-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pm-id">
+      <input type="hidden" id="pm-type">
+      <div class="form-grid">
+        <div class="form-group"><label>Name</label><input id="pm-name"></div>
+        <div class="form-group"><label>Contact person</label><input id="pm-contact"></div>
+        <div class="form-group"><label>Phone</label><input id="pm-phone"></div>
+        <div class="form-group"><label>City</label><input id="pm-city"></div>
+        <div class="form-group full"><label>Address</label><textarea id="pm-addr" style="min-height:48px"></textarea></div>
+        <div class="form-group"><label>Opening balance (Rs)</label><input id="pm-opening" type="number" placeholder="0 = no prior balance"></div>
+        <div class="form-group"><label>Balance type</label><select id="pm-bal-type"><option value="dr">They owe us (Dr)</option><option value="cr">We owe them (Cr)</option></select></div>
+        <div class="form-group full"><label>Notes</label><input id="pm-notes"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('party-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveParty()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- LEDGER TRANSACTION MODAL -->
+<div class="modal-bg" id="txn-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="txn-modal-title">Add transaction</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('txn-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="txn-party-id">
+      <div class="form-grid">
+        <div class="form-group"><label>Date</label><input id="txn-date" type="date"></div>
+        <div class="form-group"><label>Type</label><select id="txn-type"><option value="dr">Debit (they owe / we charge)</option><option value="cr">Credit (payment received / we pay)</option></select></div>
+        <div class="form-group"><label>Amount (Rs)</label><input id="txn-amount" type="number"></div>
+        <div class="form-group"><label>Reference / invoice no.</label><input id="txn-ref"></div>
+        <div class="form-group full"><label>Description</label><input id="txn-desc" placeholder="e.g. Trip #001 payment, diesel purchase"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('txn-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTxn()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPENSE MODAL -->
+<div class="modal-bg" id="expense-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add general expense</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('expense-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="em-id">
+      <div class="form-grid">
+        <div class="form-group"><label>Date</label><input id="em-date" type="date"></div>
+        <div class="form-group"><label>Category</label><select id="em-cat"><option>Salary</option><option>Office rent</option><option>Utilities</option><option>Insurance premium</option><option>Permit / licence fee</option><option>Bank charges</option><option>Miscellaneous</option></select></div>
+        <div class="form-group full"><label>Description</label><input id="em-desc"></div>
+        <div class="form-group"><label>Amount (Rs)</label><input id="em-amount" type="number"></div>
+        <div class="form-group"><label>Reference</label><input id="em-ref"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('expense-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveExpense()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- PESHGI MODAL -->
+<div class="modal-bg" id="peshgi-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Peshgi transaction</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('peshgi-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pgm-id">
+      <div class="form-grid">
+        <div class="form-group"><label>Date</label><input id="pgm-date" type="date"></div>
+        <div class="form-group"><label>Driver / helper</label><select id="pgm-person"></select></div>
+        <div class="form-group"><label>Type</label><select id="pgm-type"><option value="advance">Advance given</option><option value="salary">Salary paid</option><option value="deduction">Deduction</option><option value="settlement">Monthly settlement</option></select></div>
+        <div class="form-group"><label>Amount (Rs)</label><input id="pgm-amount" type="number"></div>
+        <div class="form-group"><label>Trip ref (optional)</label><input id="pgm-trip" placeholder="Trip #"></div>
+        <div class="form-group full"><label>Notes</label><input id="pgm-notes"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('peshgi-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="savePeshgi()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- FLEET MODAL -->
+<div class="modal-bg" id="fleet-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="fleet-modal-title">Add bowser</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('fleet-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="fm-id">
+      <div class="form-grid">
+        <div class="form-group"><label>Registration no.</label><input id="fm-reg"></div>
+        <div class="form-group"><label>Make / model</label><input id="fm-model"></div>
+        <div class="form-group"><label>Capacity (kg)</label><input id="fm-cap" type="number"></div>
+        <div class="form-group"><label>Year</label><input id="fm-year" type="number"></div>
+        <div class="form-group"><label>Status</label><select id="fm-status"><option>Active</option><option>In maintenance</option><option>Inactive</option></select></div>
+        <div class="form-group"><label>Last service date</label><input id="fm-service" type="date"></div>
+        <div class="form-group full"><label>Notes</label><textarea id="fm-notes" style="min-height:48px"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('fleet-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveFleet()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- DRIVER MODAL -->
+<div class="modal-bg" id="driver-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="driver-modal-title">Add driver / helper</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('driver-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="dm-id">
+      <div class="form-grid">
+        <div class="form-group"><label>Full name</label><input id="dm-name"></div>
+        <div class="form-group"><label>Role</label><select id="dm-role"><option>Driver</option><option>Helper</option></select></div>
+        <div class="form-group"><label>CNIC</label><input id="dm-cnic"></div>
+        <div class="form-group"><label>Phone</label><input id="dm-phone"></div>
+        <div class="form-group"><label>License no.</label><input id="dm-lic"></div>
+        <div class="form-group"><label>License expiry</label><input id="dm-lic-exp" type="date"></div>
+        <div class="form-group"><label>Daily allowance (Rs)</label><input id="dm-daily" type="number"></div>
+        <div class="form-group"><label>Monthly salary (Rs)</label><input id="dm-salary" type="number"></div>
+        <div class="form-group"><label>Status</label><select id="dm-status"><option>Active</option><option>On leave</option><option>Inactive</option></select></div>
+        <div class="form-group full"><label>Address</label><textarea id="dm-addr" style="min-height:48px"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('driver-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveDriver()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- COMPLIANCE MODAL -->
+<div class="modal-bg" id="comp-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Compliance document</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('comp-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cm-id">
+      <div class="form-grid">
+        <div class="form-group"><label>Vehicle / item</label><select id="cm-vehicle"><option value="General">General</option></select></div>
+        <div class="form-group"><label>Document type</label><select id="cm-type"><option>Route permit</option><option>Fitness certificate</option><option>LPG safety certificate</option><option>Insurance</option><option>Registration</option><option>OGRA permit</option><option>Driver license</option><option>Other</option></select></div>
+        <div class="form-group"><label>Reference / cert no.</label><input id="cm-ref"></div>
+        <div class="form-group"><label>Issue date</label><input id="cm-issue" type="date"></div>
+        <div class="form-group"><label>Expiry date</label><input id="cm-expiry" type="date"></div>
+        <div class="form-group full"><label>Notes</label><input id="cm-notes"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('comp-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveComp()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== DATA LAYER =====================
+const STORE_KEY = 'cress_lpg_v1';
+let DB = { trips:[], parties:[], transactions:[], expenses:[], peshgi:[], fleet:[], drivers:[], compliance:[], settings:{} };
+
+function loadDB(){
+  try{
+    const d=localStorage.getItem(STORE_KEY);
+    if(d){
+      const loaded=JSON.parse(d);
+      // Merge safely so missing keys don't cause undefined errors
+      DB.trips=loaded.trips||[];
+      DB.parties=loaded.parties||[];
+      DB.transactions=loaded.transactions||[];
+      DB.expenses=loaded.expenses||[];
+      DB.peshgi=loaded.peshgi||[];
+      DB.fleet=loaded.fleet||[];
+      DB.drivers=loaded.drivers||[];
+      DB.compliance=loaded.compliance||[];
+      DB.settings=loaded.settings||{};
+    }
+  }catch(e){ console.error('loadDB error',e); }
+}
+function saveDB(){ localStorage.setItem(STORE_KEY,JSON.stringify(DB)); document.getElementById('last-saved').textContent='Saved '+new Date().toLocaleTimeString('en-PK'); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function today(){ return new Date().toISOString().slice(0,10); }
+function rs(n){ return 'Rs '+Number(n||0).toLocaleString('en-PK'); }
+function daysLeft(d){ if(!d) return null; return Math.ceil((new Date(d)-new Date())/(864e5)); }
+
+// ===================== EXPORT / IMPORT =====================
+function exportData(){
+  const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='cress_lpg_backup_'+today()+'.json'; a.click();
+}
+function importData(e){
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=ev=>{ try{ DB=JSON.parse(ev.target.result); saveDB(); alert('Backup restored.'); location.reload(); }catch(e){ alert('Invalid backup file.'); }};
+  r.readAsText(f); e.target.value='';
+}
+
+// ===================== NAV =====================
+const renders = {};
+function showPage(id){
+  try{
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    const pageEl=document.getElementById('page-'+id);
+    if(pageEl) pageEl.classList.add('active');
+    const navEl=document.querySelector('[data-page="'+id+'"]');
+    if(navEl) navEl.classList.add('active');
+    if(renders[id]) renders[id]();
+  }catch(e){ console.error('showPage error',e); }
+}
+
+function showReport(id){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelector(`[data-report="${id}"]`).classList.add('active');
+  renderReport(id);
+}
+
+// ===================== MODALS =====================
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+// modal close on bg click - moved to DOMContentLoaded
+
+// ===================== SETTINGS =====================
+function loadSettings(){
+  const s=DB.settings||{};
+  document.getElementById('s-company').value=s.company||'CRESS LPG CARRIERS';
+  document.getElementById('s-yard').value=s.yard||'';
+  document.getElementById('s-driver-daily').value=s.driverDaily||'';
+  document.getElementById('s-helper-daily').value=s.helperDaily||'';
+  document.getElementById('s-trip-days').value=s.tripDays||'';
+  document.getElementById('s-diesel-bench').value=s.dieselBench||'';
+}
+function saveSettings(){
+  DB.settings={
+    company:document.getElementById('s-company').value,
+    yard:document.getElementById('s-yard').value,
+    driverDaily:Number(document.getElementById('s-driver-daily').value)||0,
+    helperDaily:Number(document.getElementById('s-helper-daily').value)||0,
+    tripDays:Number(document.getElementById('s-trip-days').value)||0,
+    dieselBench:Number(document.getElementById('s-diesel-bench').value)||0
+  };
+  saveDB(); alert('Settings saved.');
+}
+renders['settings']=loadSettings;
+
+// ===================== TRIP MODAL =====================
+let dieselRowCount=0;
+function openTripModal(id){
+  const s=DB.settings||{};
+  document.getElementById('tm-id').value=id||'';
+  document.getElementById('trip-modal-title').textContent=id?'Edit trip':'New trip';
+  const vehicles=DB.fleet.map(f=>`<option value="${f.reg}">${f.reg}</option>`).join('');
+  document.getElementById('tm-vehicle').innerHTML='<option value="">— select —</option>'+vehicles;
+  const drvs=DB.drivers.filter(d=>d.role==='Driver'&&d.status==='Active').map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+  document.getElementById('tm-driver').innerHTML='<option value="">— select —</option>'+drvs;
+  const hlps=DB.drivers.filter(d=>d.role==='Helper'&&d.status==='Active').map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+  document.getElementById('tm-helper').innerHTML='<option value="">— none —</option>'+hlps;
+  const clients=DB.parties.filter(p=>p.type==='client').map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  document.getElementById('tm-client').innerHTML='<option value="">— select —</option>'+clients;
+  const fuels=DB.parties.filter(p=>p.type==='fuel').map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  document.getElementById('diesel-rows').innerHTML='';
+  dieselRowCount=0;
+  if(id){
+    const t=DB.trips.find(x=>x.id===id);
+    if(t){
+      ['no','month','load-date','offload-date','vehicle','driver','helper','client','from','to','km','exp-days','act-days','over-days','lifted','delivered','lpg-diff','lpg-bill','billed','peshgi','status','toll','driver-exp','helper-exp','overday-cost','chalan','chalan-resp','tyre','loadunload','weigh','excise','motorway','grease','air','other-exp','other-notes','delay-reason','delay-notes','diesel-open','diesel-close','notes'].forEach(f=>{
+        const el=document.getElementById('tm-'+f); if(el) el.value=t[f.replace(/-/g,'_')]||'';
+      });
+      (t.diesel_purchases||[]).forEach(dp=>addDieselRow(dp,fuels));
+      calcDiesel(); calcTripPL();
+    }
+  } else {
+    document.getElementById('tm-load-date').value=today();
+    document.getElementById('tm-exp-days').value=s.tripDays||'';
+    document.getElementById('tm-driver-exp').value=(s.driverDaily||0)*(s.tripDays||0)||'';
+    document.getElementById('tm-helper-exp').value=(s.helperDaily||0)*(s.tripDays||0)||'';
+    document.getElementById('trip-pl-summary').innerHTML='';
+    ['no','month','offload-date','vehicle','driver','helper','client','from','to','km','act-days','over-days','lifted','delivered','lpg-diff','billed','peshgi','toll','overday-cost','chalan','tyre','loadunload','weigh','excise','motorway','grease','air','other-exp','other-notes','delay-notes','diesel-open','diesel-close','diesel-total','diesel-consumed','diesel-avg','diesel-cost','notes'].forEach(f=>{ const el=document.getElementById('tm-'+f); if(el) el.value=''; });
+  }
+  openModal('trip-modal');
+}
+
+function addDieselRow(data, fuelsHtml){
+  const fuels=DB.parties.filter(p=>p.type==='fuel').map(p=>`<option value="${p.id}"${data&&data.supplier===p.id?' selected':''}>${p.name}</option>`).join('');
+  const i=++dieselRowCount;
+  const row=document.createElement('tr');
+  row.id='drow-'+i;
+  row.innerHTML=`<td><input type="date" id="dp-date-${i}" value="${data?data.date:today()}" style="min-width:120px"></td>
+    <td><select id="dp-sup-${i}" style="min-width:120px"><option value="">— supplier —</option>${fuels}</select></td>
+    <td><input type="number" id="dp-ltr-${i}" value="${data?data.litres:''}" style="min-width:70px" oninput="calcDiesel()"></td>
+    <td><input type="number" id="dp-prc-${i}" value="${data?data.price:''}" style="min-width:80px" oninput="calcDiesel()"></td>
+    <td><input type="number" id="dp-amt-${i}" value="${data?data.amount:''}" readonly style="min-width:90px;font-family:var(--mono)"></td>
+    <td><button class="btn btn-ghost btn-sm" onclick="document.getElementById('drow-${i}').remove();calcDiesel()">✕</button></td>`;
+  document.getElementById('diesel-rows').appendChild(row);
+  if(data&&data.amount) document.getElementById('dp-amt-'+i).value=data.amount;
+}
+
+function calcDiesel(){
+  let totalLtr=0,totalCost=0;
+  for(let i=1;i<=dieselRowCount;i++){
+    const row=document.getElementById('drow-'+i); if(!row) continue;
+    const ltr=Number(document.getElementById('dp-ltr-'+i).value)||0;
+    const prc=Number(document.getElementById('dp-prc-'+i).value)||0;
+    const amt=ltr*prc;
+    document.getElementById('dp-amt-'+i).value=amt||'';
+    totalLtr+=ltr; totalCost+=amt;
+  }
+  const open=Number(document.getElementById('tm-diesel-open').value)||0;
+  const close=Number(document.getElementById('tm-diesel-close').value)||0;
+  const consumed=open+totalLtr-close;
+  const km=Number(document.getElementById('tm-km').value)||0;
+  const avg=consumed>0&&km>0?(km/consumed).toFixed(2):'—';
+  document.getElementById('tm-diesel-total').value=totalLtr||'';
+  document.getElementById('tm-diesel-consumed').value=consumed||'';
+  document.getElementById('tm-diesel-avg').value=avg;
+  document.getElementById('tm-diesel-cost').value=totalCost||'';
+  calcTripPL();
+}
+
+function calcOverDays(){
+  const exp=Number(document.getElementById('tm-exp-days').value)||0;
+  const act=Number(document.getElementById('tm-act-days').value)||0;
+  const over=Math.max(0,act-exp);
+  document.getElementById('tm-over-days').value=over||'';
+  const s=DB.settings||{};
+  if(over>0){
+    const dRate=s.driverDaily||0, hRate=s.helperDaily||0;
+    const auto=(dRate+hRate)*over;
+    document.getElementById('tm-overday-cost').value=auto||'';
+    document.getElementById('tm-driver-calc').textContent='(auto)';
+    document.getElementById('tm-helper-calc').textContent='(auto)';
+  }
+  calcTripPL();
+}
+
+function calcLpgDiff(){
+  const lifted=Number(document.getElementById('tm-lifted').value)||0;
+  const delivered=Number(document.getElementById('tm-delivered').value)||0;
+  const diff=delivered-lifted;
+  document.getElementById('tm-lpg-diff').value=diff?(diff>0?'+'+diff:diff):'';
+  document.getElementById('tm-lpg-diff').style.color=diff>0?'var(--green)':diff<0?'var(--red)':'var(--text)';
+}
+
+function calcTripPL(){
+  const billed=Number(document.getElementById('tm-billed').value)||0;
+  const expFields=['tm-toll','tm-driver-exp','tm-helper-exp','tm-overday-cost','tm-chalan','tm-tyre','tm-loadunload','tm-weigh','tm-excise','tm-motorway','tm-grease','tm-air','tm-other-exp','tm-diesel-cost'];
+  const totalExp=expFields.reduce((s,f)=>s+(Number(document.getElementById(f).value)||0),0);
+  const pl=billed-totalExp;
+  const peshgi=Number(document.getElementById('tm-peshgi').value)||0;
+  const recv=billed-peshgi;
+  const plClass=pl>=0?'profit':'loss';
+  document.getElementById('trip-pl-summary').innerHTML=`
+    <div class="cost-card">
+      <div class="cost-row"><span class="cost-label">Trip billed</span><span class="cost-val">${rs(billed)}</span></div>
+      <div class="cost-row"><span class="cost-label">Total expenses</span><span class="cost-val" style="color:var(--red)">${rs(totalExp)}</span></div>
+      <div class="cost-row ${plClass}"><span class="cost-label">Net P/L</span><span>${rs(pl)}</span></div>
+      <div class="cost-row"><span class="cost-label">Peshgi given</span><span class="cost-val">${rs(peshgi)}</span></div>
+      <div class="cost-row"><span class="cost-label">Receivable from client</span><span class="cost-val" style="color:var(--blue)">${rs(recv)}</span></div>
+    </div>`;
+}
+
+function collectDieselPurchases(){
+  const purchases=[];
+  for(let i=1;i<=dieselRowCount;i++){
+    const row=document.getElementById('drow-'+i); if(!row) continue;
+    purchases.push({date:document.getElementById('dp-date-'+i).value,supplier:document.getElementById('dp-sup-'+i).value,litres:Number(document.getElementById('dp-ltr-'+i).value)||0,price:Number(document.getElementById('dp-prc-'+i).value)||0,amount:Number(document.getElementById('dp-amt-'+i).value)||0});
+  }
+  return purchases;
+}
+
+function saveTrip(){
+  const id=document.getElementById('tm-id').value||uid();
+  const t={id,
+    no:document.getElementById('tm-no').value, month:document.getElementById('tm-month').value,
+    load_date:document.getElementById('tm-load-date').value, offload_date:document.getElementById('tm-offload-date').value,
+    vehicle:document.getElementById('tm-vehicle').value, driver:document.getElementById('tm-driver').value,
+    helper:document.getElementById('tm-helper').value, client:document.getElementById('tm-client').value,
+    from:document.getElementById('tm-from').value, to:document.getElementById('tm-to').value,
+    km:Number(document.getElementById('tm-km').value)||0,
+    exp_days:Number(document.getElementById('tm-exp-days').value)||0,
+    act_days:Number(document.getElementById('tm-act-days').value)||0,
+    over_days:Number(document.getElementById('tm-over-days').value)||0,
+    lifted:Number(document.getElementById('tm-lifted').value)||0,
+    delivered:Number(document.getElementById('tm-delivered').value)||0,
+    lpg_diff:document.getElementById('tm-lpg-diff').value,
+    lpg_bill:document.getElementById('tm-lpg-bill').value,
+    billed:Number(document.getElementById('tm-billed').value)||0,
+    peshgi:Number(document.getElementById('tm-peshgi').value)||0,
+    status:document.getElementById('tm-status').value,
+    toll:Number(document.getElementById('tm-toll').value)||0,
+    driver_exp:Number(document.getElementById('tm-driver-exp').value)||0,
+    helper_exp:Number(document.getElementById('tm-helper-exp').value)||0,
+    overday_cost:Number(document.getElementById('tm-overday-cost').value)||0,
+    chalan:Number(document.getElementById('tm-chalan').value)||0,
+    chalan_resp:document.getElementById('tm-chalan-resp').value,
+    tyre:Number(document.getElementById('tm-tyre').value)||0,
+    loadunload:Number(document.getElementById('tm-loadunload').value)||0,
+    weigh:Number(document.getElementById('tm-weigh').value)||0,
+    excise:Number(document.getElementById('tm-excise').value)||0,
+    motorway:Number(document.getElementById('tm-motorway').value)||0,
+    grease:Number(document.getElementById('tm-grease').value)||0,
+    air:Number(document.getElementById('tm-air').value)||0,
+    other_exp:Number(document.getElementById('tm-other-exp').value)||0,
+    other_notes:document.getElementById('tm-other-notes').value,
+    delay_reason:document.getElementById('tm-delay-reason').value,
+    delay_notes:document.getElementById('tm-delay-notes').value,
+    diesel_open:Number(document.getElementById('tm-diesel-open').value)||0,
+    diesel_close:Number(document.getElementById('tm-diesel-close').value)||0,
+    diesel_total:Number(document.getElementById('tm-diesel-total').value)||0,
+    diesel_consumed:Number(document.getElementById('tm-diesel-consumed').value)||0,
+    diesel_avg:document.getElementById('tm-diesel-avg').value,
+    diesel_cost:Number(document.getElementById('tm-diesel-cost').value)||0,
+    diesel_purchases:collectDieselPurchases(),
+    notes:document.getElementById('tm-notes').value
+  };
+  t.total_exp=[t.toll,t.driver_exp,t.helper_exp,t.overday_cost,t.chalan,t.tyre,t.loadunload,t.weigh,t.excise,t.motorway,t.grease,t.air,t.other_exp,t.diesel_cost].reduce((a,b)=>a+b,0);
+  t.net_pl=t.billed-t.total_exp;
+  const idx=DB.trips.findIndex(x=>x.id===id);
+  if(idx>=0) DB.trips[idx]=t; else DB.trips.push(t);
+  saveDB(); closeModal('trip-modal'); renderTrips();
+}
+
+function renderTrips(){
+  const tbody=document.getElementById('trips-tbody');
+  const data=DB.trips.sort((a,b)=>(b.load_date||'').localeCompare(a.load_date||''));
+  if(!data.length){ tbody.innerHTML=`<tr><td colspan="12"><div class="empty"><div class="empty-icon">🚛</div>No trips logged yet. Click "New trip" to start.</div></td></tr>`; return; }
+  tbody.innerHTML=data.map(t=>{
+    const plColor=t.net_pl>=0?'var(--green)':'var(--red)';
+    const sb={Completed:'badge-green','In progress':'badge-blue',Cancelled:'badge-red'};
+    const drv=DB.drivers.find(d=>d.id===t.driver);
+    return `<tr>
+      <td class="mono">${t.no||'—'}</td>
+      <td>${t.load_date||'—'}</td>
+      <td class="mono">${t.vehicle||'—'}</td>
+      <td>${drv?drv.name:t.driver||'—'}</td>
+      <td style="font-size:11px">${t.from||''}${t.from&&t.to?' → ':''}${t.to||''}</td>
+      <td class="mono">${t.lifted?t.lifted.toLocaleString():''}</td>
+      <td class="mono">${t.act_days||'—'}${t.over_days>0?` <span class="badge badge-yellow">+${t.over_days}d</span>`:''}  </td>
+      <td class="mono">${t.billed?rs(t.billed):''}</td>
+      <td class="mono">${t.total_exp?rs(t.total_exp):''}</td>
+      <td class="mono" style="color:${plColor}">${t.billed?rs(t.net_pl):''}</td>
+      <td><span class="badge ${sb[t.status]||'badge-gray'}">${t.status||''}</span></td>
+      <td><div class="row-actions"><button class="btn btn-ghost btn-sm" onclick="openTripModal('${t.id}')">✏</button><button class="btn btn-ghost btn-sm btn-danger" onclick="deleteRecord('trips','${t.id}',renderTrips)">✕</button></div></td>
+    </tr>`;
+  }).join('');
+}
+renders['trips']=renderTrips;
+
+// ===================== PARTIES / LEDGERS =====================
+let currentPartyType='client';
+function openPartyModal(type, id){
+  currentPartyType=type;
+  const labels={client:'client',fuel:'fuel supplier',vendor:'vendor / parts supplier'};
+  document.getElementById('party-modal-title').textContent=(id?'Edit ':'Add ')+labels[type];
+  document.getElementById('pm-type').value=type;
+  document.getElementById('pm-id').value=id||'';
+  if(id){
+    const p=DB.parties.find(x=>x.id===id);
+    if(p){
+      document.getElementById('pm-name').value=p.name||'';
+      document.getElementById('pm-contact').value=p.contact||'';
+      document.getElementById('pm-phone').value=p.phone||'';
+      document.getElementById('pm-city').value=p.city||'';
+      document.getElementById('pm-addr').value=p.addr||'';
+      document.getElementById('pm-notes').value=p.notes||'';
+      document.getElementById('pm-opening').value=p.opening||0;
+      document.getElementById('pm-bal-type').value=p.bal_type||'dr';
+    }
+  } else {
+    ['pm-name','pm-contact','pm-phone','pm-city','pm-addr','pm-notes'].forEach(f=>document.getElementById(f).value='');
+    document.getElementById('pm-opening').value=0;
+  }
+  openModal('party-modal');
+}
+
+function saveParty(){
+  const id=document.getElementById('pm-id').value||uid();
+  const type=document.getElementById('pm-type').value;
+  const p={id,type,name:document.getElementById('pm-name').value,contact:document.getElementById('pm-contact').value,phone:document.getElementById('pm-phone').value,city:document.getElementById('pm-city').value,addr:document.getElementById('pm-addr').value,notes:document.getElementById('pm-notes').value,opening:Number(document.getElementById('pm-opening').value)||0,bal_type:document.getElementById('pm-bal-type').value};
+  const idx=DB.parties.findIndex(x=>x.id===id);
+  if(idx>=0) DB.parties[idx]=p; else DB.parties.push(p);
+  saveDB(); closeModal('party-modal');
+  const renderMap={client:renderClients,fuel:renderFuelSuppliers,vendor:renderVendors};
+  renderMap[type]&&renderMap[type]();
+}
+
+function getPartyBalance(partyId){
+  const p=DB.parties.find(x=>x.id===partyId); if(!p) return 0;
+  let bal=p.bal_type==='dr'?p.opening:-(p.opening)||0;
+  DB.transactions.filter(t=>t.party===partyId).forEach(t=>{ bal+=t.type==='dr'?t.amount:-t.amount; });
+  return bal;
+}
+
+function renderPartyList(type, containerId){
+  const parties=DB.parties.filter(p=>p.type===type);
+  const el=document.getElementById(containerId);
+  if(!parties.length){ el.innerHTML=`<div class="empty"><div class="empty-icon">📋</div>No ${type==='client'?'clients':type==='fuel'?'fuel suppliers':'vendors'} added yet.</div>`; return; }
+  el.innerHTML=parties.map(p=>{
+    const bal=getPartyBalance(p.id);
+    const txns=DB.transactions.filter(t=>t.party===p.id).sort((a,b)=>b.date.localeCompare(a.date));
+    const balColor=bal>0?'var(--red)':bal<0?'var(--green)':'var(--text2)';
+    const balLabel=bal>0?'Outstanding (Dr)':bal<0?'We owe (Cr)':'Settled';
+    return `<div style="margin-bottom:1rem">
+      <div class="ledger-header">
+        <div>
+          <div style="font-size:15px;font-weight:600">${p.name}</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:2px">${p.city||''} ${p.phone?'· '+p.phone:''}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="ledger-balance" style="color:${balColor}">${rs(Math.abs(bal))}</div>
+          <div style="font-size:11px;color:var(--text3)">${balLabel}</div>
+          <div style="display:flex;gap:6px;margin-top:8px;justify-content:flex-end">
+            <button class="btn btn-sm btn-primary" onclick="openTxnModal('${p.id}')">+ Transaction</button>
+            <button class="btn btn-sm" onclick="openPartyModal('${type}','${p.id}')">Edit</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteRecord('parties','${p.id}',()=>{renderPartyList('${type}','${containerId}')})">Delete</button>
+          </div>
+        </div>
+      </div>
+      ${txns.length?`<div class="table-wrap"><table><thead><tr><th>Date</th><th>Description</th><th>Debit</th><th>Credit</th><th>Ref</th><th></th></tr></thead><tbody>
+        ${txns.map(t=>`<tr><td>${t.date}</td><td>${t.desc||'—'}</td><td class="mono" style="color:var(--red)">${t.type==='dr'?rs(t.amount):''}</td><td class="mono" style="color:var(--green)">${t.type==='cr'?rs(t.amount):''}</td><td class="mono">${t.ref||'—'}</td><td><button class="btn btn-ghost btn-sm btn-danger" onclick="deleteRecord('transactions','${t.id}',()=>{renderPartyList('${type}','${containerId}')})">✕</button></td></tr>`).join('')}
+      </tbody></table></div>`:'<div style="text-align:center;padding:1rem;color:var(--text3);font-size:12px">No transactions yet</div>'}
+    </div>`;
+  }).join('');
+}
+
+function renderClients(){ renderPartyList('client','clients-list'); }
+function renderFuelSuppliers(){ renderPartyList('fuel','fuel-list'); }
+function renderVendors(){ renderPartyList('vendor','vendors-list'); }
+renders['clients']=renderClients;
+renders['fuel-suppliers']=renderFuelSuppliers;
+renders['vendors']=renderVendors;
+
+function openTxnModal(partyId){
+  document.getElementById('txn-party-id').value=partyId;
+  const p=DB.parties.find(x=>x.id===partyId);
+  document.getElementById('txn-modal-title').textContent='Transaction — '+(p?p.name:'');
+  document.getElementById('txn-date').value=today();
+  document.getElementById('txn-amount').value='';
+  document.getElementById('txn-ref').value='';
+  document.getElementById('txn-desc').value='';
+  openModal('txn-modal');
+}
+
+function saveTxn(){
+  const partyId=document.getElementById('txn-party-id').value;
+  const txn={id:uid(),party:partyId,date:document.getElementById('txn-date').value,type:document.getElementById('txn-type').value,amount:Number(document.getElementById('txn-amount').value)||0,ref:document.getElementById('txn-ref').value,desc:document.getElementById('txn-desc').value};
+  DB.transactions.push(txn);
+  saveDB(); closeModal('txn-modal');
+  const p=DB.parties.find(x=>x.id===partyId);
+  if(p){ const renderMap={client:renderClients,fuel:renderFuelSuppliers,vendor:renderVendors}; renderMap[p.type]&&renderMap[p.type](); }
+}
+
+// ===================== GENERAL EXPENSES =====================
+function openExpenseModal(id){
+  document.getElementById('em-id').value=id||'';
+  if(id){ const e=DB.expenses.find(x=>x.id===id); if(e){ document.getElementById('em-date').value=e.date; document.getElementById('em-cat').value=e.cat; document.getElementById('em-desc').value=e.desc; document.getElementById('em-amount').value=e.amount; document.getElementById('em-ref').value=e.ref||''; } }
+  else { document.getElementById('em-date').value=today(); ['em-desc','em-amount','em-ref'].forEach(f=>document.getElementById(f).value=''); }
+  openModal('expense-modal');
+}
+function saveExpense(){
+  const id=document.getElementById('em-id').value||uid();
+  const e={id,date:document.getElementById('em-date').value,cat:document.getElementById('em-cat').value,desc:document.getElementById('em-desc').value,amount:Number(document.getElementById('em-amount').value)||0,ref:document.getElementById('em-ref').value};
+  const idx=DB.expenses.findIndex(x=>x.id===id);
+  if(idx>=0) DB.expenses[idx]=e; else DB.expenses.push(e);
+  saveDB(); closeModal('expense-modal'); renderExpenses();
+}
+function renderExpenses(){
+  const total=DB.expenses.reduce((s,e)=>s+e.amount,0);
+  document.getElementById('exp-metrics').innerHTML=`<div class="metric"><div class="metric-label">Total expenses</div><div class="metric-value red">${rs(total)}</div></div><div class="metric"><div class="metric-label">Records</div><div class="metric-value">${DB.expenses.length}</div></div>`;
+  const tbody=document.getElementById('expenses-tbody');
+  const data=DB.expenses.sort((a,b)=>b.date.localeCompare(a.date));
+  if(!data.length){ tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-icon">💸</div>No expenses recorded.</div></td></tr>`; return; }
+  tbody.innerHTML=data.map(e=>`<tr><td>${e.date}</td><td><span class="badge badge-gray">${e.cat}</span></td><td>${e.desc||'—'}</td><td class="mono" style="color:var(--red)">${rs(e.amount)}</td><td class="mono">${e.ref||'—'}</td><td><div class="row-actions"><button class="btn btn-ghost btn-sm" onclick="openExpenseModal('${e.id}')">✏</button><button class="btn btn-ghost btn-sm btn-danger" onclick="deleteRecord('expenses','${e.id}',renderExpenses)">✕</button></div></td></tr>`).join('');
+}
+renders['expenses']=renderExpenses;
+
+// ===================== PESHGI =====================
+function openPeshgiModal(id){
+  const people=DB.drivers.map(d=>`<option value="${d.id}">${d.name} (${d.role})</option>`).join('');
+  document.getElementById('pgm-person').innerHTML=people;
+  document.getElementById('pgm-id').value=id||'';
+  document.getElementById('pgm-date').value=today();
+  ['pgm-amount','pgm-trip','pgm-notes'].forEach(f=>document.getElementById(f).value='');
+  openModal('peshgi-modal');
+}
+function savePeshgi(){
+  const id=document.getElementById('pgm-id').value||uid();
+  const p={id,date:document.getElementById('pgm-date').value,person:document.getElementById('pgm-person').value,type:document.getElementById('pgm-type').value,amount:Number(document.getElementById('pgm-amount').value)||0,trip:document.getElementById('pgm-trip').value,notes:document.getElementById('pgm-notes').value};
+  const idx=DB.peshgi.findIndex(x=>x.id===id);
+  if(idx>=0) DB.peshgi[idx]=p; else DB.peshgi.push(p);
+  saveDB(); closeModal('peshgi-modal'); renderPeshgi();
+}
+function renderPeshgi(){
+  const people=[...new Set(DB.peshgi.map(p=>p.person))];
+  const allDrivers=DB.drivers;
+  const shown=new Set([...allDrivers.map(d=>d.id),...people]);
+  const el=document.getElementById('peshgi-list');
+  if(!DB.drivers.length){ el.innerHTML=`<div class="empty"><div class="empty-icon">👷</div>Add drivers first, then record peshgi.</div>`; return; }
+  el.innerHTML=allDrivers.map(d=>{
+    const txns=DB.peshgi.filter(p=>p.person===d.id).sort((a,b)=>b.date.localeCompare(a.date));
+    let bal=0;
+    txns.forEach(t=>{ if(t.type==='advance') bal+=t.amount; else if(t.type==='salary'||t.type==='settlement') bal-=t.amount; else if(t.type==='deduction') bal-=t.amount; });
+    const balColor=bal>0?'var(--accent)':bal<0?'var(--red)':'var(--text2)';
+    return `<div style="margin-bottom:1rem">
+      <div class="ledger-header">
+        <div>
+          <div style="font-size:15px;font-weight:600">${d.name} <span class="badge badge-gray">${d.role}</span></div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:2px">${d.phone||''}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="ledger-balance" style="color:${balColor}">${rs(Math.abs(bal))}</div>
+          <div style="font-size:11px;color:var(--text3)">${bal>0?'Outstanding advance':bal<0?'Overpaid':'Settled'}</div>
+          <button class="btn btn-sm btn-primary" style="margin-top:8px" onclick="openPeshgiModal()">+ Transaction</button>
+        </div>
+      </div>
+      ${txns.length?`<div class="table-wrap"><table><thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Trip ref</th><th>Notes</th><th></th></tr></thead><tbody>
+        ${txns.map(t=>{const tc={advance:'badge-yellow',salary:'badge-green',deduction:'badge-red',settlement:'badge-blue'}; return `<tr><td>${t.date}</td><td><span class="badge ${tc[t.type]||'badge-gray'}">${t.type}</span></td><td class="mono">${rs(t.amount)}</td><td>${t.trip||'—'}</td><td>${t.notes||'—'}</td><td><button class="btn btn-ghost btn-sm btn-danger" onclick="deleteRecord('peshgi','${t.id}',renderPeshgi)">✕</button></td></tr>`; }).join('')}
+      </tbody></table></div>`:'<div style="text-align:center;padding:1rem;color:var(--text3);font-size:12px">No transactions yet</div>'}
+    </div>`;
+  }).join('');
+}
+renders['peshgi']=renderPeshgi;
+
+// ===================== FLEET =====================
+function openFleetModal(id){
+  document.getElementById('fleet-modal-title').textContent=id?'Edit bowser':'Add bowser';
+  document.getElementById('fm-id').value=id||'';
+  if(id){ const f=DB.fleet.find(x=>x.id===id); if(f){ document.getElementById('fm-reg').value=f.reg; document.getElementById('fm-model').value=f.model; document.getElementById('fm-cap').value=f.cap; document.getElementById('fm-year').value=f.year; document.getElementById('fm-status').value=f.status; document.getElementById('fm-service').value=f.service||''; document.getElementById('fm-notes').value=f.notes||''; } }
+  else { ['fm-reg','fm-model','fm-cap','fm-year','fm-service','fm-notes'].forEach(f=>document.getElementById(f).value=''); document.getElementById('fm-status').value='Active'; }
+  openModal('fleet-modal');
+}
+function saveFleet(){
+  const id=document.getElementById('fm-id').value||uid();
+  if(!document.getElementById('fm-reg').value){ alert('Registration number required.'); return; }
+  const f={id,reg:document.getElementById('fm-reg').value,model:document.getElementById('fm-model').value,cap:Number(document.getElementById('fm-cap').value)||0,year:document.getElementById('fm-year').value,status:document.getElementById('fm-status').value,service:document.getElementById('fm-service').value,notes:document.getElementById('fm-notes').value};
+  const idx=DB.fleet.findIndex(x=>x.id===id);
+  if(idx>=0) DB.fleet[idx]=f; else DB.fleet.push(f);
+  saveDB(); closeModal('fleet-modal'); renderFleet();
+}
+function renderFleet(){
+  const tbody=document.getElementById('fleet-tbody');
+  if(!DB.fleet.length){ tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="empty-icon">🚛</div>No bowsers added.</div></td></tr>`; return; }
+  const sb={Active:'badge-green','In maintenance':'badge-yellow',Inactive:'badge-red'};
+  tbody.innerHTML=DB.fleet.map(f=>`<tr><td class="mono"><strong>${f.reg}</strong></td><td>${f.model||'—'}</td><td class="mono">${f.cap?f.cap.toLocaleString():''}</td><td>${f.year||'—'}</td><td><span class="badge ${sb[f.status]||'badge-gray'}">${f.status}</span></td><td>${f.service||'—'}</td><td style="font-size:12px;color:var(--text3)">${f.notes||''}</td><td><div class="row-actions"><button class="btn btn-ghost btn-sm" onclick="openFleetModal('${f.id}')">✏</button><button class="btn btn-ghost btn-sm btn-danger" onclick="deleteRecord('fleet','${f.id}',renderFleet)">✕</button></div></td></tr>`).join('');
+}
+renders['fleet']=renderFleet;
+
+// ===================== DRIVERS =====================
+function openDriverModal(id){
+  document.getElementById('driver-modal-title').textContent=id?'Edit':'Add driver / helper';
+  document.getElementById('dm-id').value=id||'';
+  if(id){ const d=DB.drivers.find(x=>x.id===id); if(d){ ['name','cnic','phone','lic','addr'].forEach(f=>document.getElementById('dm-'+f).value=d[f]||''); document.getElementById('dm-lic-exp').value=d.lic_exp||''; document.getElementById('dm-daily').value=d.daily||''; document.getElementById('dm-salary').value=d.salary||''; document.getElementById('dm-role').value=d.role||'Driver'; document.getElementById('dm-status').value=d.status||'Active'; } }
+  else { ['dm-name','dm-cnic','dm-phone','dm-lic','dm-lic-exp','dm-daily','dm-salary','dm-addr'].forEach(f=>document.getElementById(f).value=''); }
+  openModal('driver-modal');
+}
+function saveDriver(){
+  const id=document.getElementById('dm-id').value||uid();
+  if(!document.getElementById('dm-name').value){ alert('Name required.'); return; }
+  const d={id,name:document.getElementById('dm-name').value,role:document.getElementById('dm-role').value,cnic:document.getElementById('dm-cnic').value,phone:document.getElementById('dm-phone').value,lic:document.getElementById('dm-lic').value,lic_exp:document.getElementById('dm-lic-exp').value,daily:Number(document.getElementById('dm-daily').value)||0,salary:Number(document.getElementById('dm-salary').value)||0,status:document.getElementById('dm-status').value,addr:document.getElementById('dm-addr').value};
+  const idx=DB.drivers.findIndex(x=>x.id===id);
+  if(idx>=0) DB.drivers[idx]=d; else DB.drivers.push(d);
+  saveDB(); closeModal('driver-modal'); renderDrivers();
+}
+function renderDrivers(){
+  const tbody=document.getElementById('drivers-tbody');
+  if(!DB.drivers.length){ tbody.innerHTML=`<tr><td colspan="9"><div class="empty"><div class="empty-icon">👷</div>No drivers added.</div></td></tr>`; return; }
+  const sb={Active:'badge-green','On leave':'badge-yellow',Inactive:'badge-red'};
+  tbody.innerHTML=DB.drivers.map(d=>{
+    const dl=daysLeft(d.lic_exp);
+    const licBadge=dl===null?d.lic||'—':dl<0?`<span class="badge badge-red">Expired</span>`:dl<=60?`<span class="badge badge-yellow">${d.lic_exp} (${dl}d)</span>`:d.lic_exp;
+    return `<tr><td>${d.name}</td><td><span class="badge badge-gray">${d.role}</span></td><td class="mono">${d.cnic||'—'}</td><td class="mono">${d.lic||'—'}</td><td>${licBadge}</td><td>${d.phone||'—'}</td><td class="mono">${d.daily?rs(d.daily):''}</td><td><span class="badge ${sb[d.status]||'badge-gray'}">${d.status}</span></td><td><div class="row-actions"><button class="btn btn-ghost btn-sm" onclick="openDriverModal('${d.id}')">✏</button><button class="btn btn-ghost btn-sm btn-danger" onclick="deleteRecord('drivers','${d.id}',renderDrivers)">✕</button></div></td></tr>`;
+  }).join('');
+}
+renders['drivers']=renderDrivers;
+
+// ===================== COMPLIANCE =====================
+function openCompModal(id){
+  const vehicles=[{v:'General',l:'General'},...DB.fleet.map(f=>({v:f.reg,l:f.reg}))];
+  document.getElementById('cm-vehicle').innerHTML=vehicles.map(v=>`<option value="${v.v}">${v.l}</option>`).join('');
+  document.getElementById('cm-id').value=id||'';
+  if(id){ const c=DB.compliance.find(x=>x.id===id); if(c){ document.getElementById('cm-vehicle').value=c.vehicle; document.getElementById('cm-type').value=c.type; document.getElementById('cm-ref').value=c.ref||''; document.getElementById('cm-issue').value=c.issue||''; document.getElementById('cm-expiry').value=c.expiry||''; document.getElementById('cm-notes').value=c.notes||''; } }
+  else { ['cm-ref','cm-issue','cm-expiry','cm-notes'].forEach(f=>document.getElementById(f).value=''); }
+  openModal('comp-modal');
+}
+function saveComp(){
+  const id=document.getElementById('cm-id').value||uid();
+  const c={id,vehicle:document.getElementById('cm-vehicle').value,type:document.getElementById('cm-type').value,ref:document.getElementById('cm-ref').value,issue:document.getElementById('cm-issue').value,expiry:document.getElementById('cm-expiry').value,notes:document.getElementById('cm-notes').value};
+  const idx=DB.compliance.findIndex(x=>x.id===id);
+  if(idx>=0) DB.compliance[idx]=c; else DB.compliance.push(c);
+  saveDB(); closeModal('comp-modal'); renderCompliance();
+}
+function renderCompliance(){
+  const tbody=document.getElementById('comp-tbody');
+  const data=DB.compliance.sort((a,b)=>(a.expiry||'').localeCompare(b.expiry||''));
+  if(!data.length){ tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="empty-icon">🛡</div>No compliance documents added.</div></td></tr>`; return; }
+  tbody.innerHTML=data.map(c=>{
+    const dl=daysLeft(c.expiry);
+    const badge=dl===null?'<span class="badge badge-blue">No expiry</span>':dl<0?'<span class="badge badge-red">Expired</span>':dl<=14?`<span class="badge badge-red">${dl}d</span>`:dl<=60?`<span class="badge badge-yellow">${dl}d</span>`:`<span class="badge badge-green">Valid</span>`;
+    return `<tr><td class="mono">${c.vehicle}</td><td>${c.type}</td><td class="mono">${c.ref||'—'}</td><td>${c.issue||'—'}</td><td>${c.expiry||'—'}</td><td>${dl!==null?Math.abs(dl)+'d':''}</td><td>${badge}</td><td><div class="row-actions"><button class="btn btn-ghost btn-sm" onclick="openCompModal('${c.id}')">✏</button><button class="btn btn-ghost btn-sm btn-danger" onclick="deleteRecord('compliance','${c.id}',renderCompliance)">✕</button></div></td></tr>`;
+  }).join('');
+}
+renders['compliance']=renderCompliance;
+
+// ===================== DELETE =====================
+function deleteRecord(collection, id, callback){
+  if(!confirm('Delete this record? This cannot be undone.')) return;
+  DB[collection]=DB[collection].filter(x=>x.id!==id);
+  saveDB(); callback&&callback();
+}
+
+// ===================== REPORTS =====================
+function renderReport(type){
+  const el=document.getElementById('report-content');
+  if(type==='pl'){
+    const revenue=DB.trips.filter(t=>t.status==='Completed').reduce((s,t)=>s+t.billed,0);
+    const tripExp=DB.trips.reduce((s,t)=>s+t.total_exp,0);
+    const genExp=DB.expenses.reduce((s,e)=>s+e.amount,0);
+    const totalExp=tripExp+genExp;
+    const net=revenue-totalExp;
+    el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem">
+      <div class="metric"><div class="metric-label">Total revenue</div><div class="metric-value green">${rs(revenue)}</div><div class="metric-sub">from completed trips</div></div>
+      <div class="metric"><div class="metric-label">Trip expenses</div><div class="metric-value red">${rs(tripExp)}</div></div>
+      <div class="metric"><div class="metric-label">General expenses</div><div class="metric-value red">${rs(genExp)}</div></div>
+      <div class="metric"><div class="metric-label">Net profit</div><div class="metric-value ${net>=0?'green':'red'}">${rs(net)}</div></div>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>Trip #</th><th>Date</th><th>Vehicle</th><th>Route</th><th>Billed</th><th>Expenses</th><th>Net P/L</th><th>Cost/ton</th></tr></thead><tbody>
+      ${DB.trips.map(t=>`<tr><td class="mono">${t.no||'—'}</td><td>${t.load_date}</td><td class="mono">${t.vehicle}</td><td style="font-size:11px">${t.from}→${t.to}</td><td class="mono">${rs(t.billed)}</td><td class="mono" style="color:var(--red)">${rs(t.total_exp)}</td><td class="mono" style="color:${t.net_pl>=0?'var(--green)':'var(--red)'}">${rs(t.net_pl)}</td><td class="mono">${t.lifted>0?'Rs '+(t.total_exp/t.lifted*1000).toFixed(0)+'/ton':'—'}</td></tr>`).join('')}
+    </tbody></table></div>`;
+  } else if(type==='receivables'){
+    const clients=DB.parties.filter(p=>p.type==='client');
+    const rows=clients.map(p=>{ const bal=getPartyBalance(p.id); return {name:p.name,bal,city:p.city}; }).filter(r=>r.bal>0);
+    const total=rows.reduce((s,r)=>s+r.bal,0);
+    el.innerHTML=`<div class="metric" style="margin-bottom:1rem;max-width:200px"><div class="metric-label">Total receivable</div><div class="metric-value red">${rs(total)}</div></div>
+    <div class="table-wrap"><table><thead><tr><th>Client</th><th>City</th><th>Outstanding (Rs)</th></tr></thead><tbody>
+      ${rows.length?rows.map(r=>`<tr><td>${r.name}</td><td>${r.city||'—'}</td><td class="mono" style="color:var(--red)">${rs(r.bal)}</td></tr>`).join(''):'<tr><td colspan="3"><div class="empty">No outstanding receivables.</div></td></tr>'}
+    </tbody></table></div>`;
+  } else if(type==='payables'){
+    const suppliers=[...DB.parties.filter(p=>p.type==='fuel'),...DB.parties.filter(p=>p.type==='vendor')];
+    const rows=suppliers.map(p=>{ const bal=getPartyBalance(p.id); return {name:p.name,type:p.type,bal}; }).filter(r=>r.bal<0);
+    const total=rows.reduce((s,r)=>s+Math.abs(r.bal),0);
+    el.innerHTML=`<div class="metric" style="margin-bottom:1rem;max-width:200px"><div class="metric-label">Total payable</div><div class="metric-value red">${rs(total)}</div></div>
+    <div class="table-wrap"><table><thead><tr><th>Supplier</th><th>Type</th><th>We owe (Rs)</th></tr></thead><tbody>
+      ${rows.length?rows.map(r=>`<tr><td>${r.name}</td><td><span class="badge badge-gray">${r.type}</span></td><td class="mono" style="color:var(--red)">${rs(Math.abs(r.bal))}</td></tr>`).join(''):'<tr><td colspan="3"><div class="empty">No outstanding payables.</div></td></tr>'}
+    </tbody></table></div>`;
+  } else if(type==='diesel'){
+    const trips=DB.trips.filter(t=>t.diesel_consumed>0);
+    const bench=DB.settings.dieselBench||2.6;
+    el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:1.5rem">
+      <div class="metric"><div class="metric-label">Total diesel consumed</div><div class="metric-value">${trips.reduce((s,t)=>s+t.diesel_consumed,0).toLocaleString()} ltr</div></div>
+      <div class="metric"><div class="metric-label">Total diesel cost</div><div class="metric-value red">${rs(trips.reduce((s,t)=>s+t.diesel_cost,0))}</div></div>
+      <div class="metric"><div class="metric-label">Benchmark avg</div><div class="metric-value gold">${bench} km/ltr</div></div>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>Trip #</th><th>Vehicle</th><th>Distance</th><th>Consumed (ltr)</th><th>Avg km/ltr</th><th>vs Benchmark</th><th>Cost</th></tr></thead><tbody>
+      ${trips.map(t=>{const avg=parseFloat(t.diesel_avg)||0; const diff=avg-bench; const diffColor=diff>=0?'var(--green)':'var(--red)'; return `<tr><td class="mono">${t.no||'—'}</td><td class="mono">${t.vehicle}</td><td class="mono">${t.km?t.km+' km':'—'}</td><td class="mono">${t.diesel_consumed}</td><td class="mono">${t.diesel_avg}</td><td class="mono" style="color:${diffColor}">${diff>=0?'+':''}${diff.toFixed(2)}</td><td class="mono">${rs(t.diesel_cost)}</td></tr>`; }).join('')}
+    </tbody></table></div>`;
+  } else if(type==='trips-report'){
+    const t=DB.trips[0];
+    if(!t){ el.innerHTML=`<div class="empty"><div class="empty-icon">📊</div>No trips logged yet.</div>`; return; }
+    el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Trip #</th><th>Vehicle</th><th>Driver</th><th>Route</th><th>LPG lifted</th><th>LPG delivered</th><th>Gain/loss</th><th>Days</th><th>Over days</th><th>Delay reason</th><th>Total exp</th><th>Net P/L</th></tr></thead><tbody>
+      ${DB.trips.map(t=>{ const drv=DB.drivers.find(d=>d.id===t.driver); return `<tr><td class="mono">${t.no||'—'}</td><td class="mono">${t.vehicle}</td><td>${drv?drv.name:'—'}</td><td style="font-size:11px">${t.from}→${t.to}</td><td class="mono">${t.lifted?t.lifted.toLocaleString():''}</td><td class="mono">${t.delivered?t.delivered.toLocaleString():''}</td><td class="mono" style="color:${parseFloat(t.lpg_diff)>0?'var(--green)':parseFloat(t.lpg_diff)<0?'var(--red)':'var(--text)'}">${t.lpg_diff||'0'}</td><td class="mono">${t.act_days||'—'}</td><td class="mono" style="color:${t.over_days>0?'var(--accent)':'var(--text)'}">${t.over_days||'0'}</td><td style="font-size:11px">${t.delay_reason||'—'}</td><td class="mono">${rs(t.total_exp)}</td><td class="mono" style="color:${t.net_pl>=0?'var(--green)':'var(--red)'}">${rs(t.net_pl)}</td></tr>`; }).join('')}
+    </tbody></table></div>`;
+  }
+}
+renders['reports']=()=>renderReport('pl');
+
+// ===================== DASHBOARD =====================
+function renderDashboard(){
+  const now=new Date();
+  document.getElementById('top-date').textContent=now.toLocaleDateString('en-PK',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+  document.getElementById('dash-sub').textContent=now.toLocaleDateString('en-PK',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const revenue=DB.trips.filter(t=>t.status==='Completed').reduce((s,t)=>s+t.billed,0);
+  const expenses=DB.trips.reduce((s,t)=>s+t.total_exp,0)+DB.expenses.reduce((s,e)=>s+e.amount,0);
+  const net=revenue-expenses;
+  const activeFleet=DB.fleet.filter(f=>f.status==='Active').length;
+  const totalReceivable=DB.parties.filter(p=>p.type==='client').reduce((s,p)=>s+Math.max(0,getPartyBalance(p.id)),0);
+  document.getElementById('dash-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">Total revenue</div><div class="metric-value green">${rs(revenue)}</div><div class="metric-sub">${DB.trips.filter(t=>t.status==='Completed').length} completed trips</div></div>
+    <div class="metric"><div class="metric-label">Total expenses</div><div class="metric-value red">${rs(expenses)}</div></div>
+    <div class="metric"><div class="metric-label">Net profit</div><div class="metric-value ${net>=0?'green':'red'}">${rs(net)}</div></div>
+    <div class="metric"><div class="metric-label">Receivable</div><div class="metric-value gold">${rs(totalReceivable)}</div><div class="metric-sub">from clients</div></div>
+    <div class="metric"><div class="metric-label">Active fleet</div><div class="metric-value">${activeFleet}</div><div class="metric-sub">of ${DB.fleet.length} bowsers</div></div>
+    <div class="metric"><div class="metric-label">Active drivers</div><div class="metric-value">${DB.drivers.filter(d=>d.status==='Active').length}</div></div>`;
+  const recentTrips=DB.trips.sort((a,b)=>(b.load_date||'').localeCompare(a.load_date||'')).slice(0,6);
+  document.getElementById('dash-trips-tbody').innerHTML=recentTrips.length?recentTrips.map(t=>`<tr><td class="mono">${t.no||'—'}</td><td class="mono">${t.vehicle||'—'}</td><td style="font-size:11px">${t.from||''}→${t.to||''}</td><td class="mono">${rs(t.billed)}</td><td class="mono" style="color:${t.net_pl>=0?'var(--green)':'var(--red)'}">${rs(t.net_pl)}</td></tr>`).join(''):`<tr><td colspan="5"><div class="empty" style="padding:1rem">No trips yet</div></td></tr>`;
+  const alerts=[];
+  DB.compliance.forEach(c=>{ const dl=daysLeft(c.expiry); if(dl!==null&&dl<=60) alerts.push({text:`${c.vehicle} — ${c.type}`,days:dl,type:'compliance'}); });
+  DB.drivers.forEach(d=>{ const dl=daysLeft(d.lic_exp); if(dl!==null&&dl<=60) alerts.push({text:`${d.name} license`,days:dl,type:'license'}); });
+  const alertEl=document.getElementById('dash-alerts');
+  if(!alerts.length){ alertEl.innerHTML=`<div class="empty" style="padding:1rem"><div class="empty-icon" style="font-size:20px">✅</div>No urgent alerts</div>`; return; }
+  alerts.sort((a,b)=>a.days-b.days);
+  alertEl.innerHTML=alerts.map(a=>{
+    const badge=a.days<0?'badge-red':a.days<=14?'badge-red':a.days<=30?'badge-yellow':'badge-blue';
+    const label=a.days<0?'Expired':`${a.days}d left`;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border);font-size:12.5px"><span>${a.text}</span><span class="badge ${badge}">${label}</span></div>`;
+  }).join('');
+}
+renders['dashboard']=renderDashboard;
+
+// ===================== INIT =====================
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m) closeModal(m.id); }));
+  loadDB();
+  renderDashboard();
+  loadSettings();
+});
+</script>
+</body>
+</html>

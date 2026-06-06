@@ -40,7 +40,7 @@ export default function Trips() {
             <tr>
               <th>Trip #</th><th>Load date</th><th>Vehicle</th>
               <th>Route</th><th>LPG (kg)</th><th>Days</th><th>Rent/MT</th>
-              <th>Expenses</th><th>P/L</th><th></th>
+              <th>Cost/MT</th><th>P/L</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -58,7 +58,7 @@ export default function Trips() {
                   {t.over_days > 0 && <span className="badge badge-yellow" style={{ marginLeft: 4 }}>+{t.over_days}d</span>}
                 </td>
                 <td className="mono">{t.lpg_rent_mt ? rs(t.lpg_rent_mt) : ''}</td>
-                <td className="mono">{t.total_exp ? rs(t.total_exp) : ''}</td>
+                <td className="mono">{t.delivered > 0 && t.total_exp > 0 ? 'Rs ' + (t.total_exp / (t.delivered / 1000)).toFixed(0) : ''}</td>
                 <td className="mono" style={{ color: t.net_pl >= 0 ? 'var(--green)' : 'var(--red)' }}>{t.lpg_rent_mt ? rs(t.net_pl) : ''}</td>
                 <td>
                   <div className="row-actions">

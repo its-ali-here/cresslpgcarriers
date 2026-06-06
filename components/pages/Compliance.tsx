@@ -2,12 +2,15 @@
 
 import { useState } from 'react';
 import { useApp } from '@/context/AppContext';
+import { useUser } from '@/context/UserContext';
 import { daysLeft } from '@/lib/utils';
 import type { ComplianceDoc } from '@/lib/types';
 import ComplianceModal from '../modals/ComplianceModal';
 
 export default function Compliance() {
   const { compliance, deleteCompliance } = useApp();
+  const { role } = useUser();
+  const isAdmin = role === 'admin';
   const [editing, setEditing] = useState<ComplianceDoc | null | 'new'>(null);
 
   const sorted = [...compliance].sort((a, b) => (a.expiry || '').localeCompare(b.expiry || ''));
@@ -22,7 +25,7 @@ export default function Compliance() {
       <div className="page-header">
         <div><div className="page-title">Compliance documents</div></div>
         <div className="header-actions">
-          <button className="btn btn-primary" onClick={() => setEditing('new')}>+ Add document</button>
+          {isAdmin && <button className="btn btn-primary" onClick={() => setEditing('new')}>+ Add document</button>}
         </div>
       </div>
 
@@ -56,8 +59,8 @@ export default function Compliance() {
                   <td>{badge}</td>
                   <td>
                     <div className="row-actions">
-                      <button className="btn btn-ghost btn-sm" onClick={() => setEditing(c)}>✏</button>
-                      <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDelete(c.id)}>✕</button>
+                      {isAdmin && <button className="btn btn-ghost btn-sm" onClick={() => setEditing(c)}>✏</button>}
+                      {isAdmin && <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDelete(c.id)}>✕</button>}
                     </div>
                   </td>
                 </tr>

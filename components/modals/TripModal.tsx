@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useApp } from '@/context/AppContext';
+import { useUser } from '@/context/UserContext';
 import { uid, today, rs } from '@/lib/utils';
 import type { Trip, DieselPurchase } from '@/lib/types';
 
@@ -60,7 +61,8 @@ function tripToForm(t: Trip): TripForm {
 }
 
 export default function TripModal({ trip, onClose }: Props) {
-  const { fleet, drivers, parties, settings, provinces, cities, sites, cityDistances, saveTrip } = useApp();
+  const { fleet, parties, settings, provinces, cities, sites, cityDistances, saveTrip } = useApp();
+  const { userId, role } = useUser();
   const [form, setForm] = useState<TripForm>(trip ? tripToForm(trip) : emptyForm(settings));
   const [dieselRows, setDieselRows] = useState<DieselPurchase[]>(trip?.diesel_purchases || []);
 
@@ -70,15 +72,8 @@ export default function TripModal({ trip, onClose }: Props) {
   const fuelSuppliers = parties.filter(p => p.type === 'fuel');
   const clients = parties.filter(p => p.type === 'client');
 
-  // Vehicle → driver auto-select
-  const selectedFleet = fleet.find(f => f.reg === form.vehicle);
-  const autoDriver = selectedFleet ? drivers.find(d => d.vehicle_id === selectedFleet.id) : undefined;
-  const driverLocked = !!autoDriver;
-
   function handleVehicleChange(reg: string) {
-    const fi = fleet.find(f => f.reg === reg);
-    const ad = fi ? drivers.find(d => d.vehicle_id === fi.id) : undefined;
-    setForm(prev => ({ ...prev, vehicle: reg, driver: ad?.id || '' }));
+    setForm(prev => ({ ...prev, vehicle: reg }));
   }
 
   function tryFillKm(fromCityName: string, toCityName: string) {
@@ -191,7 +186,15 @@ export default function TripModal({ trip, onClose }: Props) {
 
   async function handleSave() {
     const id = trip?.id || uid();
-    await saveTrip({ ...form, id, total_exp: totalExp, net_pl: pl, diesel_purchases: dieselRows });
+    const isNew = !trip;
+    await saveTrip({
+      ...form,
+      id,
+      total_exp: totalExp,
+      net_pl: pl,
+      diesel_purchases: dieselRows,
+      ...(isNew && { approved: role === 'admin', created_by: userId }),
+    });
     onClose();
   }
 
@@ -222,13 +225,6 @@ export default function TripModal({ trip, onClose }: Props) {
               </select>
             </div>
             <div className="form-group">
-              <label>Driver{driverLocked ? ' (auto-assigned)' : ''}</label>
-              <select value={form.driver} onChange={e => set('driver', e.target.value)} disabled={driverLocked}>
-                <option value="">— select —</option>
-                {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
-            </div>
-            <div className="form-group">
               <label>Client</label>
               <select value={form.client} onChange={e => set('client', e.target.value)}>
                 <option value="">— select —</option>
@@ -245,10 +241,25 @@ export default function TripModal({ trip, onClose }: Props) {
               </select>
             </div>
             <div className="form-group">
+              <label>To (Province)</label>
+              <select value={form.to_province} onChange={e => handleToProvince(e.target.value)}>
+                <option value="">— select province —</option>
+                {provinces.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
               <label>From (City)</label>
               <select value={form.from_city} onChange={e => handleFromCity(e.target.value)} disabled={!form.from_province}>
                 <option value="">— select city —</option>
                 {cities.filter(c => provinces.find(p => p.name === form.from_province)?.id === c.province_id)
+                  .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>To (City)</label>
+              <select value={form.to_city} onChange={e => handleToCity(e.target.value)} disabled={!form.to_province}>
+                <option value="">— select city —</option>
+                {cities.filter(c => provinces.find(p => p.name === form.to_province)?.id === c.province_id)
                   .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
               </select>
             </div>
@@ -258,21 +269,6 @@ export default function TripModal({ trip, onClose }: Props) {
                 <option value="">— select site —</option>
                 {sites.filter(s => cities.find(c => c.name === form.from_city)?.id === s.city_id)
                   .map(s => <option key={s.id} value={s.name}>{s.name} <span>({s.type})</span></option>)}
-              </select>
-            </div>
-            <div className="form-group">
-              <label>To (Province)</label>
-              <select value={form.to_province} onChange={e => handleToProvince(e.target.value)}>
-                <option value="">— select province —</option>
-                {provinces.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
-              </select>
-            </div>
-            <div className="form-group">
-              <label>To (City)</label>
-              <select value={form.to_city} onChange={e => handleToCity(e.target.value)} disabled={!form.to_province}>
-                <option value="">— select city —</option>
-                {cities.filter(c => provinces.find(p => p.name === form.to_province)?.id === c.province_id)
-                  .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
               </select>
             </div>
             <div className="form-group">

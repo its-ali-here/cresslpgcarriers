@@ -57,6 +57,12 @@ CREATE TABLE public.trips (
   engine_oil_litres numeric DEFAULT 0,
   engine_oil_price numeric DEFAULT 0,
   engine_oil_cost numeric DEFAULT 0,
+  from_city text,
+  to_city text,
+  from_province text,
+  to_province text,
+  approved boolean NOT NULL DEFAULT true,
+  created_by text,
   CONSTRAINT trips_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.parties (
@@ -95,17 +101,6 @@ CREATE TABLE public.expenses (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT expenses_pkey PRIMARY KEY (id)
 );
-CREATE TABLE public.peshgi (
-  id text NOT NULL,
-  date date,
-  person text,
-  type text,
-  amount numeric DEFAULT 0,
-  trip text,
-  notes text,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT peshgi_pkey PRIMARY KEY (id)
-);
 CREATE TABLE public.fleet (
   id text NOT NULL,
   reg text UNIQUE,
@@ -124,16 +119,13 @@ CREATE TABLE public.fleet (
 CREATE TABLE public.drivers (
   id text NOT NULL,
   name text NOT NULL,
-  role text DEFAULT 'Driver'::text,
   cnic text,
   phone text,
   lic text,
   lic_exp date,
-  daily numeric DEFAULT 0,
   salary numeric DEFAULT 0,
-  status text DEFAULT 'Active'::text,
-  addr text,
   created_at timestamp with time zone DEFAULT now(),
+  vehicle_id text,
   CONSTRAINT drivers_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.compliance (
@@ -156,4 +148,55 @@ CREATE TABLE public.settings (
   trip_days numeric DEFAULT 0,
   diesel_bench numeric DEFAULT 2.6,
   CONSTRAINT settings_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.provinces (
+  id text NOT NULL,
+  name text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT provinces_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.cities (
+  id text NOT NULL,
+  province_id text NOT NULL,
+  name text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT cities_pkey PRIMARY KEY (id),
+  CONSTRAINT cities_province_id_fkey FOREIGN KEY (province_id) REFERENCES public.provinces(id)
+);
+CREATE TABLE public.sites (
+  id text NOT NULL,
+  city_id text NOT NULL,
+  name text NOT NULL,
+  type text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT sites_pkey PRIMARY KEY (id),
+  CONSTRAINT sites_city_id_fkey FOREIGN KEY (city_id) REFERENCES public.cities(id)
+);
+CREATE TABLE public.city_distances (
+  id text NOT NULL,
+  from_city_id text NOT NULL,
+  to_city_id text NOT NULL,
+  km numeric NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT city_distances_pkey PRIMARY KEY (id),
+  CONSTRAINT city_distances_from_city_id_fkey FOREIGN KEY (from_city_id) REFERENCES public.cities(id),
+  CONSTRAINT city_distances_to_city_id_fkey FOREIGN KEY (to_city_id) REFERENCES public.cities(id)
+);
+CREATE TABLE public.peshgi (
+  id text NOT NULL,
+  date date,
+  person text,
+  type text,
+  amount numeric DEFAULT 0,
+  trip text,
+  notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT peshgi_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  role text NOT NULL CHECK (role = ANY (ARRAY['admin'::text, 'operator'::text, 'viewer'::text])),
+  name text,
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT user_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
 );

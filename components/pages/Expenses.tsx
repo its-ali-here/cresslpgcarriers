@@ -2,12 +2,15 @@
 
 import { useState } from 'react';
 import { useApp } from '@/context/AppContext';
+import { useUser } from '@/context/UserContext';
 import { rs } from '@/lib/utils';
 import type { Expense } from '@/lib/types';
 import ExpenseModal from '../modals/ExpenseModal';
 
 export default function Expenses() {
   const { expenses, deleteExpense } = useApp();
+  const { role } = useUser();
+  const isAdmin = role === 'admin';
   const [editing, setEditing] = useState<Expense | null | 'new'>(null);
 
   const sorted = [...expenses].sort((a, b) => b.date.localeCompare(a.date));
@@ -26,7 +29,7 @@ export default function Expenses() {
           <div className="page-sub">salaries, rent, fixed overheads</div>
         </div>
         <div className="header-actions">
-          <button className="btn btn-primary" onClick={() => setEditing('new')}>+ Add expense</button>
+          {isAdmin && <button className="btn btn-primary" onClick={() => setEditing('new')}>+ Add expense</button>}
         </div>
       </div>
 
@@ -58,8 +61,8 @@ export default function Expenses() {
                 <td className="mono">{e.ref || '—'}</td>
                 <td>
                   <div className="row-actions">
-                    <button className="btn btn-ghost btn-sm" onClick={() => setEditing(e)}>✏</button>
-                    <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDelete(e.id)}>✕</button>
+                    {isAdmin && <button className="btn btn-ghost btn-sm" onClick={() => setEditing(e)}>✏</button>}
+                    {isAdmin && <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDelete(e.id)}>✕</button>}
                   </div>
                 </td>
               </tr>

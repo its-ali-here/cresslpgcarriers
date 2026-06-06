@@ -31,7 +31,7 @@ export default function LoginScreen() {
             </svg>
           </div>
           <div>
-            <div className="brand-name" style={{ fontSize: 20 }}>CRESS LPG CARRIERS</div>
+            <div className="brand-name" style={{ fontSize: 20, color: 'var(--navy)' }}>CRESS LPG CARRIERS</div>
             <div className="brand-sub">Logistics Management System</div>
           </div>
         </div>

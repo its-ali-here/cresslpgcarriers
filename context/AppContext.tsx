@@ -14,6 +14,7 @@ interface AppContextValue extends AppDB {
   // Trips
   saveTrip: (trip: Trip) => Promise<void>;
   deleteTrip: (id: string) => Promise<void>;
+  approveTrip: (id: string) => Promise<void>;
   // Parties
   saveParty: (party: Party) => Promise<void>;
   deleteParty: (id: string) => Promise<void>;
@@ -53,6 +54,18 @@ interface AppContextValue extends AppDB {
   getPartyBalance: (partyId: string) => number;
 }
 
+function assignNos(trips: Trip[]): Trip[] {
+  const withDate = [...trips].filter(t => t.load_date)
+    .sort((a, b) => a.load_date!.localeCompare(b.load_date!) || a.id.localeCompare(b.id));
+  const yearSeq: Record<string, number> = {};
+  const numbered = withDate.map(t => {
+    const year = t.load_date!.slice(0, 4);
+    yearSeq[year] = (yearSeq[year] ?? 0) + 1;
+    return { ...t, no: `${year}-${String(yearSeq[year]).padStart(3, '0')}` };
+  });
+  return [...numbered, ...trips.filter(t => !t.load_date)];
+}
+
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -75,26 +88,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // TRIPS
   const saveTrip = useCallback(async (trip: Trip) => {
-    let finalTrip = trip;
-    if (!trip.no && trip.load_date) {
-      const year = trip.load_date.slice(0, 4);
-      const yearTrips = state.trips.filter(t => t.id !== trip.id && t.load_date?.startsWith(year));
-      const seq = yearTrips.length + 1;
-      finalTrip = { ...trip, no: `${year}-${String(seq).padStart(3, '0')}` };
-    }
-    await db.upsertTrip(finalTrip);
-    setState(prev => {
-      const idx = prev.trips.findIndex(t => t.id === finalTrip.id);
-      const trips = idx >= 0
-        ? prev.trips.map(t => t.id === finalTrip.id ? finalTrip : t)
-        : [...prev.trips, finalTrip];
-      return { ...prev, trips };
-    });
+    await db.upsertTrip(trip);
+    const current = state.trips;
+    const next = current.some(t => t.id === trip.id)
+      ? current.map(t => t.id === trip.id ? trip : t)
+      : [...current, trip];
+    const renumbered = assignNos(next);
+    const changed = renumbered.filter(r => current.find(t => t.id === r.id)?.no !== r.no);
+    await db.batchUpdateTripNos(changed.map(t => ({ id: t.id, no: t.no })));
+    setState(prev => ({ ...prev, trips: renumbered }));
   }, [state.trips]);
 
   const deleteTrip = useCallback(async (id: string) => {
     await db.deleteTrip(id);
-    setState(prev => ({ ...prev, trips: prev.trips.filter(t => t.id !== id) }));
+    const next = state.trips.filter(t => t.id !== id);
+    const renumbered = assignNos(next);
+    const changed = renumbered.filter(r => state.trips.find(t => t.id === r.id)?.no !== r.no);
+    await db.batchUpdateTripNos(changed.map(t => ({ id: t.id, no: t.no })));
+    setState(prev => ({ ...prev, trips: renumbered }));
+  }, [state.trips]);
+
+  const approveTrip = useCallback(async (id: string) => {
+    await db.approveTrip(id);
+    setState(prev => ({
+      ...prev,
+      trips: prev.trips.map(t => t.id === id ? { ...t, approved: true } : t),
+    }));
   }, []);
 
   // PARTIES
@@ -305,7 +324,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider value={{
       ...state, loading,
-      saveTrip, deleteTrip,
+      saveTrip, deleteTrip, approveTrip,
       saveParty, deleteParty,
       addTransaction, deleteTransaction,
       saveExpense, deleteExpense,

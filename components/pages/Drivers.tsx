@@ -2,12 +2,15 @@
 
 import { useState } from 'react';
 import { useApp } from '@/context/AppContext';
+import { useUser } from '@/context/UserContext';
 import { daysLeft } from '@/lib/utils';
 import type { Driver } from '@/lib/types';
 import DriverModal from '../modals/DriverModal';
 
 export default function Drivers() {
   const { drivers, fleet, deleteDriver } = useApp();
+  const { role } = useUser();
+  const isAdmin = role === 'admin';
   const [editing, setEditing] = useState<Driver | null | 'new'>(null);
 
   async function handleDelete(id: string) {
@@ -20,7 +23,7 @@ export default function Drivers() {
       <div className="page-header">
         <div><div className="page-title">List Of Drivers</div></div>
         <div className="header-actions">
-          <button className="btn btn-primary" onClick={() => setEditing('new')}>+ Add person</button>
+          {isAdmin && <button className="btn btn-primary" onClick={() => setEditing('new')}>+ Add person</button>}
         </div>
       </div>
 
@@ -52,8 +55,8 @@ export default function Drivers() {
                   <td>{d.phone || '—'}</td>
                   <td>
                     <div className="row-actions">
-                      <button className="btn btn-ghost btn-sm" onClick={() => setEditing(d)}>✏</button>
-                      <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDelete(d.id)}>✕</button>
+                      {isAdmin && <button className="btn btn-ghost btn-sm" onClick={() => setEditing(d)}>✏</button>}
+                      {isAdmin && <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDelete(d.id)}>✕</button>}
                     </div>
                   </td>
                 </tr>

@@ -1,3 +1,11 @@
+export type UserRole = 'admin' | 'operator' | 'viewer';
+
+export interface UserProfile {
+  userId: string;
+  role: UserRole;
+  name: string;
+}
+
 export interface DieselPurchase {
   date: string;
   supplier: string;
@@ -93,6 +101,8 @@ export interface Trip {
   notes: string;
   total_exp: number;
   net_pl: number;
+  approved?: boolean;
+  created_by?: string;
 }
 
 export interface Party {

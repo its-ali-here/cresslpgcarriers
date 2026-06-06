@@ -2,9 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useUser } from '@/context/UserContext';
+
+const ROLE_LABEL: Record<string, string> = {
+  admin: 'Admin',
+  operator: 'Operator',
+  viewer: 'Viewer',
+};
 
 export default function Topbar() {
   const [dateStr, setDateStr] = useState('');
+  const { role, name } = useUser();
 
   useEffect(() => {
     const d = new Date();
@@ -33,6 +41,10 @@ export default function Topbar() {
       </div>
       <div className="topbar-actions">
         <span className="topbar-date">{dateStr}</span>
+        {name && <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--cond)' }}>{name}</span>}
+        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', fontFamily: 'var(--cond)', color: 'var(--accent)', textTransform: 'uppercase', padding: '2px 7px', border: '1px solid var(--accent)', borderRadius: 4 }}>
+          {ROLE_LABEL[role] ?? role}
+        </span>
         <button className="btn btn-sm" onClick={handleSignOut}>Sign out</button>
       </div>
     </div>

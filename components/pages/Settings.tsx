@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
+import { useUser } from '@/context/UserContext';
 import type { Settings as SettingsType } from '@/lib/types';
 
 export default function Settings() {
   const { settings, updateSettings } = useApp();
+  const { role } = useUser();
   const [form, setForm] = useState<SettingsType>(settings);
 
   useEffect(() => { setForm(settings); }, [settings]);
@@ -57,7 +59,7 @@ export default function Settings() {
         </div>
       </div>
 
-      <button className="btn btn-primary" onClick={handleSave}>Save settings</button>
+      {role === 'admin' && <button className="btn btn-primary" onClick={handleSave}>Save settings</button>}
     </div>
   );
 }

@@ -14,10 +14,17 @@ import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Destinations from './pages/Destinations';
 import { useApp } from '@/context/AppContext';
+import { useUser } from '@/context/UserContext';
 
 export default function App() {
-  const [page, setPage] = useState('dashboard');
+  const { role } = useUser();
+  const [page, setPage] = useState(role === 'operator' ? 'trips' : 'dashboard');
   const { loading } = useApp();
+
+  function navigate(p: string) {
+    if (p === 'settings' && role !== 'admin') return;
+    setPage(p);
+  }
 
 
   if (loading) {
@@ -48,7 +55,7 @@ export default function App() {
     <>
       <Topbar />
       <div className="layout">
-        <Sidebar current={page} onNavigate={setPage} />
+        <Sidebar current={page} onNavigate={navigate} />
         <div className="main">
           {renderPage()}
         </div>

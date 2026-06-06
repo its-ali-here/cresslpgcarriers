@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useApp } from '@/context/AppContext';
+import { useUser } from '@/context/UserContext';
 import { rs } from '@/lib/utils';
 import type { Party } from '@/lib/types';
 import PartyModal from '../modals/PartyModal';
@@ -17,6 +18,8 @@ const TABS: { id: Tab; label: string; addLabel: string; empty: string }[] = [
 
 export default function ThirdParties() {
   const { parties, transactions, deleteParty, deleteTransaction, getPartyBalance } = useApp();
+  const { role } = useUser();
+  const isAdmin = role === 'admin';
   const [tab, setTab] = useState<Tab>('client');
   const [editingParty, setEditingParty] = useState<Party | null | 'new'>(null);
   const [txnPartyId, setTxnPartyId] = useState<string | null>(null);
@@ -39,9 +42,11 @@ export default function ThirdParties() {
       <div className="page-header">
         <div><div className="page-title">Third parties</div></div>
         <div className="header-actions">
-          <button className="btn btn-primary" onClick={() => setEditingParty('new')}>
-            + Add {currentTab.addLabel}
-          </button>
+          {isAdmin && (
+            <button className="btn btn-primary" onClick={() => setEditingParty('new')}>
+              + Add {currentTab.addLabel}
+            </button>
+          )}
         </div>
       </div>
 
@@ -83,11 +88,13 @@ export default function ThirdParties() {
               <div style={{ textAlign: 'right' }}>
                 <div className="ledger-balance" style={{ color: balColor }}>{rs(Math.abs(bal))}</div>
                 <div style={{ fontSize: 11, color: 'var(--text3)' }}>{balLabel}</div>
-                <div style={{ display: 'flex', gap: 6, marginTop: 8, justifyContent: 'flex-end' }}>
-                  <button className="btn btn-sm btn-primary" onClick={() => setTxnPartyId(p.id)}>+ Transaction</button>
-                  <button className="btn btn-sm" onClick={() => setEditingParty(p)}>Edit</button>
-                  <button className="btn btn-sm btn-danger" onClick={() => handleDeleteParty(p.id)}>Delete</button>
-                </div>
+                {isAdmin && (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 8, justifyContent: 'flex-end' }}>
+                    <button className="btn btn-sm btn-primary" onClick={() => setTxnPartyId(p.id)}>+ Transaction</button>
+                    <button className="btn btn-sm" onClick={() => setEditingParty(p)}>Edit</button>
+                    <button className="btn btn-sm btn-danger" onClick={() => handleDeleteParty(p.id)}>Delete</button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -106,7 +113,7 @@ export default function ThirdParties() {
                         <td className="mono" style={{ color: 'var(--green)' }}>{t.type === 'cr' ? rs(t.amount) : ''}</td>
                         <td className="mono">{t.ref || '—'}</td>
                         <td>
-                          <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDeleteTxn(t.id)}>✕</button>
+                          {isAdmin && <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDeleteTxn(t.id)}>✕</button>}
                         </td>
                       </tr>
                     ))}

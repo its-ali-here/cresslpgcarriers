@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import type {
   Trip, Party, Transaction, Expense, PeshgiEntry,
   FleetItem, Driver, ComplianceDoc, Settings, AppDB,
-  Province, City, Site, CityDistance,
+  Province, City, Site, CityDistance, UserProfile,
 } from './types';
 
 // Convert empty strings to null for date columns so Postgres doesn't reject them.
@@ -46,6 +46,22 @@ export async function upsertTrip(trip: Trip): Promise<void> {
 }
 export async function deleteTrip(id: string): Promise<void> {
   const { error } = await supabase.from('trips').delete().eq('id', id);
+  if (error) throw error;
+}
+export async function batchUpdateTripNos(updates: { id: string; no: string }[]): Promise<void> {
+  if (!updates.length) return;
+  const { error } = await supabase.from('trips').upsert(updates, { onConflict: 'id' });
+  if (error) throw error;
+}
+
+export async function fetchUserProfile(userId: string): Promise<UserProfile | null> {
+  const { data } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+  if (!data) return null;
+  return { userId: data.id, role: data.role, name: data.name || '' };
+}
+
+export async function approveTrip(id: string): Promise<void> {
+  const { error } = await supabase.from('trips').update({ approved: true }).eq('id', id);
   if (error) throw error;
 }
 
@@ -108,10 +124,12 @@ export async function deleteExpense(id: string): Promise<void> {
 
 // ---- PESHGI ----
 export async function fetchPeshgi(): Promise<PeshgiEntry[]> {
-  const { data, error } = await supabase
-    .from('peshgi').select('*').order('date', { ascending: false });
-  if (error) throw error;
-  return (data || []) as PeshgiEntry[];
+  return graceful(async () => {
+    const { data, error } = await supabase
+      .from('peshgi').select('*').order('date', { ascending: false });
+    if (error) return [];
+    return (data || []) as PeshgiEntry[];
+  });
 }
 export async function upsertPeshgi(entry: PeshgiEntry): Promise<void> {
   const { error } = await supabase.from('peshgi').upsert(nullDates(entry as unknown as Record<string, unknown>, ['date']));

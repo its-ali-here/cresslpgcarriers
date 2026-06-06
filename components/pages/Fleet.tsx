@@ -2,11 +2,14 @@
 
 import { useState } from 'react';
 import { useApp } from '@/context/AppContext';
+import { useUser } from '@/context/UserContext';
 import type { FleetItem } from '@/lib/types';
 import FleetModal from '../modals/FleetModal';
 
 export default function Fleet() {
   const { fleet, deleteFleet } = useApp();
+  const { role } = useUser();
+  const isAdmin = role === 'admin';
   const [editing, setEditing] = useState<FleetItem | null | 'new'>(null);
 
   async function handleDelete(id: string) {
@@ -19,7 +22,7 @@ export default function Fleet() {
       <div className="page-header">
         <div><div className="page-title">Fleet registry</div></div>
         <div className="header-actions">
-          <button className="btn btn-primary" onClick={() => setEditing('new')}>+ Add bowser</button>
+          {isAdmin && <button className="btn btn-primary" onClick={() => setEditing('new')}>+ Add bowser</button>}
         </div>
       </div>
 
@@ -41,8 +44,8 @@ export default function Fleet() {
                 <td>{f.bowser_no || '—'}</td>
                 <td>
                   <div className="row-actions">
-                    <button className="btn btn-ghost btn-sm" onClick={() => setEditing(f)}>✏</button>
-                    <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDelete(f.id)}>✕</button>
+                    {isAdmin && <button className="btn btn-ghost btn-sm" onClick={() => setEditing(f)}>✏</button>}
+                    {isAdmin && <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDelete(f.id)}>✕</button>}
                   </div>
                 </td>
               </tr>

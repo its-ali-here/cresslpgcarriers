@@ -2,11 +2,14 @@
 
 import { useState } from 'react';
 import { useApp } from '@/context/AppContext';
+import { useUser } from '@/context/UserContext';
 import { rs } from '@/lib/utils';
 import PeshgiModal from '../modals/PeshgiModal';
 
 export default function Peshgi() {
   const { drivers, peshgi, deletePeshgi } = useApp();
+  const { role } = useUser();
+  const isAdmin = role === 'admin';
   const [modalOpen, setModalOpen] = useState(false);
 
   const typeBadge: Record<string, string> = {
@@ -25,7 +28,7 @@ export default function Peshgi() {
         <div className="page-header">
           <div><div className="page-title">Peshgi ledger</div><div className="page-sub">driver advances & salary settlements</div></div>
           <div className="header-actions">
-            <button className="btn btn-primary" onClick={() => setModalOpen(true)}>+ Record transaction</button>
+            {isAdmin && <button className="btn btn-primary" onClick={() => setModalOpen(true)}>+ Record transaction</button>}
           </div>
         </div>
         <div className="empty"><div className="empty-icon">👷</div>Add drivers first, then record peshgi.</div>
@@ -66,7 +69,7 @@ export default function Peshgi() {
                 <div style={{ fontSize: 11, color: 'var(--text3)' }}>
                   {bal > 0 ? 'Outstanding advance' : bal < 0 ? 'Overpaid' : 'Settled'}
                 </div>
-                <button className="btn btn-sm btn-primary" style={{ marginTop: 8 }} onClick={() => setModalOpen(true)}>+ Transaction</button>
+                {isAdmin && <button className="btn btn-sm btn-primary" style={{ marginTop: 8 }} onClick={() => setModalOpen(true)}>+ Transaction</button>}
               </div>
             </div>
 
@@ -85,7 +88,7 @@ export default function Peshgi() {
                         <td>{t.trip || '—'}</td>
                         <td>{t.notes || '—'}</td>
                         <td>
-                          <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDelete(t.id)}>✕</button>
+                          {isAdmin && <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDelete(t.id)}>✕</button>}
                         </td>
                       </tr>
                     ))}

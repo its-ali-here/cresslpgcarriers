@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useApp } from '@/context/AppContext';
+import { useUser } from '@/context/UserContext';
 import { uid } from '@/lib/utils';
 import { SITE_TYPES } from '@/lib/types';
 import type { SiteType } from '@/lib/types';
@@ -19,6 +20,9 @@ export default function Destinations() {
     saveSite, deleteSite,
     saveCityDistance, deleteCityDistance,
   } = useApp();
+
+  const { role } = useUser();
+  const isAdmin = role === 'admin';
 
   const [tab, setTab] = useState<Tab>('locations');
 
@@ -159,12 +163,12 @@ export default function Destinations() {
       <div className="page-header">
         <div><div className="page-title">Destinations</div></div>
         <div className="header-actions">
-          {tab === 'locations' && (
+          {isAdmin && tab === 'locations' && (
             <button className="btn btn-primary" onClick={() => { setAddingProvince(true); setNewProvinceName(''); }}>
               + Add province
             </button>
           )}
-          {tab === 'distances' && (
+          {isAdmin && tab === 'distances' && (
             <button className="btn btn-primary" onClick={() => setAddingDist(true)}>
               + Add distance
             </button>
@@ -237,20 +241,22 @@ export default function Destinations() {
                     <span style={{ flex: 1, fontWeight: 600 }}>{province.name}</span>
                   )}
                   <span style={{ fontSize: 11, color: 'var(--text3)' }}>{provinceCities.length} {provinceCities.length === 1 ? 'city' : 'cities'}</span>
-                  <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
-                    {editProvince?.id === province.id ? (
-                      <>
-                        <button className="btn btn-sm btn-primary" onClick={handleEditProvince}>Save</button>
-                        <button className="btn btn-sm btn-ghost" onClick={() => setEditProvince(null)}>Cancel</button>
-                      </>
-                    ) : (
-                      <>
-                        <button className="btn btn-ghost btn-sm" onClick={() => { setAddingCityFor(province.id); setNewCityName(''); setExpandedProvinces(prev => new Set([...prev, province.id])); }}>+ City</button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => setEditProvince({ id: province.id, value: province.name })}>✏</button>
-                        <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDeleteProvince(province.id)}>✕</button>
-                      </>
-                    )}
-                  </div>
+                  {isAdmin && (
+                    <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
+                      {editProvince?.id === province.id ? (
+                        <>
+                          <button className="btn btn-sm btn-primary" onClick={handleEditProvince}>Save</button>
+                          <button className="btn btn-sm btn-ghost" onClick={() => setEditProvince(null)}>Cancel</button>
+                        </>
+                      ) : (
+                        <>
+                          <button className="btn btn-ghost btn-sm" onClick={() => { setAddingCityFor(province.id); setNewCityName(''); setExpandedProvinces(prev => new Set([...prev, province.id])); }}>+ City</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => setEditProvince({ id: province.id, value: province.name })}>✏</button>
+                          <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDeleteProvince(province.id)}>✕</button>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Cities (expanded) */}
@@ -298,20 +304,22 @@ export default function Destinations() {
                               <span style={{ flex: 1, fontWeight: 500 }}>{city.name}</span>
                             )}
                             <span style={{ fontSize: 11, color: 'var(--text3)' }}>{citySites.length} {citySites.length === 1 ? 'site' : 'sites'}</span>
-                            <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
-                              {editCity?.id === city.id ? (
-                                <>
-                                  <button className="btn btn-sm btn-primary" onClick={handleEditCity}>Save</button>
-                                  <button className="btn btn-sm btn-ghost" onClick={() => setEditCity(null)}>Cancel</button>
-                                </>
-                              ) : (
-                                <>
-                                  <button className="btn btn-ghost btn-sm" onClick={() => { setAddingSiteFor(city.id); setNewSiteName(''); setNewSiteType('Plant'); setExpandedCities(prev => new Set([...prev, city.id])); }}>+ Site</button>
-                                  <button className="btn btn-ghost btn-sm" onClick={() => setEditCity({ id: city.id, value: city.name })}>✏</button>
-                                  <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDeleteCity(city.id)}>✕</button>
-                                </>
-                              )}
-                            </div>
+                            {isAdmin && (
+                              <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
+                                {editCity?.id === city.id ? (
+                                  <>
+                                    <button className="btn btn-sm btn-primary" onClick={handleEditCity}>Save</button>
+                                    <button className="btn btn-sm btn-ghost" onClick={() => setEditCity(null)}>Cancel</button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button className="btn btn-ghost btn-sm" onClick={() => { setAddingSiteFor(city.id); setNewSiteName(''); setNewSiteType('Plant'); setExpandedCities(prev => new Set([...prev, city.id])); }}>+ Site</button>
+                                    <button className="btn btn-ghost btn-sm" onClick={() => setEditCity({ id: city.id, value: city.name })}>✏</button>
+                                    <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDeleteCity(city.id)}>✕</button>
+                                  </>
+                                )}
+                              </div>
+                            )}
                           </div>
 
                           {/* Sites (expanded) */}
@@ -361,8 +369,8 @@ export default function Destinations() {
                                     <>
                                       <span style={{ flex: 1, fontSize: 13 }}>{site.name}</span>
                                       <span className="badge badge-gray" style={{ fontSize: 10 }}>{site.type}</span>
-                                      <button className="btn btn-ghost btn-sm" onClick={() => setEditSite({ id: site.id, value: site.name, extra: site.type })}>✏</button>
-                                      <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDeleteSite(site.id)}>✕</button>
+                                      {isAdmin && <button className="btn btn-ghost btn-sm" onClick={() => setEditSite({ id: site.id, value: site.name, extra: site.type })}>✏</button>}
+                                      {isAdmin && <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDeleteSite(site.id)}>✕</button>}
                                     </>
                                   )}
                                 </div>
@@ -433,8 +441,8 @@ export default function Destinations() {
                         </>
                       ) : (
                         <>
-                          <button className="btn btn-ghost btn-sm" onClick={() => setEditDist({ id: d.id, km: String(d.km) })}>✏</button>
-                          <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDeleteDist(d.id)}>✕</button>
+                          {isAdmin && <button className="btn btn-ghost btn-sm" onClick={() => setEditDist({ id: d.id, km: String(d.km) })}>✏</button>}
+                          {isAdmin && <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDeleteDist(d.id)}>✕</button>}
                         </>
                       )}
                     </div>

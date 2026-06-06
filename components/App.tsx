@@ -5,14 +5,14 @@ import Topbar from './Topbar';
 import Sidebar from './Sidebar';
 import Dashboard from './pages/Dashboard';
 import Trips from './pages/Trips';
-import PartyLedger from './pages/PartyLedger';
+import ThirdParties from './pages/ThirdParties';
 import Expenses from './pages/Expenses';
-import Peshgi from './pages/Peshgi';
 import Fleet from './pages/Fleet';
 import Drivers from './pages/Drivers';
 import Compliance from './pages/Compliance';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import Destinations from './pages/Destinations';
 import { useApp } from '@/context/AppContext';
 
 export default function App() {
@@ -32,11 +32,9 @@ export default function App() {
     switch (page) {
       case 'dashboard': return <Dashboard />;
       case 'trips': return <Trips />;
-      case 'clients': return <PartyLedger type="client" title="Client ledgers" sub="receivables & payment tracking" />;
-      case 'fuel-suppliers': return <PartyLedger type="fuel" title="Fuel supplier ledgers" sub="diesel purchases & payments" />;
-      case 'vendors': return <PartyLedger type="vendor" title="Vendor / parts ledgers" sub="workshops, parts suppliers, services" />;
+      case 'third-parties': return <ThirdParties />;
       case 'expenses': return <Expenses />;
-      case 'peshgi': return <Peshgi />;
+      case 'destinations': return <Destinations />;
       case 'fleet': return <Fleet />;
       case 'drivers': return <Drivers />;
       case 'compliance': return <Compliance />;

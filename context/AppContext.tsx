@@ -1,7 +1,11 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import type { AppDB, Trip, Party, Transaction, Expense, PeshgiEntry, FleetItem, Driver, ComplianceDoc, Settings } from '@/lib/types';
+import type {
+  AppDB, Trip, Party, Transaction, Expense, PeshgiEntry,
+  FleetItem, Driver, ComplianceDoc, Settings,
+  Province, City, Site, CityDistance,
+} from '@/lib/types';
 import * as db from '@/lib/db';
 import { uid } from '@/lib/utils';
 
@@ -33,6 +37,18 @@ interface AppContextValue extends AppDB {
   deleteCompliance: (id: string) => Promise<void>;
   // Settings
   updateSettings: (s: Settings) => Promise<void>;
+  // Provinces
+  saveProvince: (p: Province) => Promise<void>;
+  deleteProvince: (id: string) => Promise<void>;
+  // Cities
+  saveCity: (c: City) => Promise<void>;
+  deleteCity: (id: string) => Promise<void>;
+  // Sites
+  saveSite: (s: Site) => Promise<void>;
+  deleteSite: (id: string) => Promise<void>;
+  // City distances
+  saveCityDistance: (d: CityDistance) => Promise<void>;
+  deleteCityDistance: (id: string) => Promise<void>;
   // Helpers
   getPartyBalance: (partyId: string) => number;
 }
@@ -45,6 +61,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     trips: [], parties: [], transactions: [], expenses: [],
     peshgi: [], fleet: [], drivers: [], compliance: [],
     settings: { company: 'CRESS LPG CARRIERS', yard: '', driverDaily: 0, helperDaily: 0, tripDays: 0, dieselBench: 2.6 },
+    provinces: [], cities: [], sites: [], cityDistances: [],
   });
 
   useEffect(() => {
@@ -58,15 +75,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // TRIPS
   const saveTrip = useCallback(async (trip: Trip) => {
-    await db.upsertTrip(trip);
+    let finalTrip = trip;
+    if (!trip.no && trip.load_date) {
+      const year = trip.load_date.slice(0, 4);
+      const yearTrips = state.trips.filter(t => t.id !== trip.id && t.load_date?.startsWith(year));
+      const seq = yearTrips.length + 1;
+      finalTrip = { ...trip, no: `${year}-${String(seq).padStart(3, '0')}` };
+    }
+    await db.upsertTrip(finalTrip);
     setState(prev => {
-      const idx = prev.trips.findIndex(t => t.id === trip.id);
+      const idx = prev.trips.findIndex(t => t.id === finalTrip.id);
       const trips = idx >= 0
-        ? prev.trips.map(t => t.id === trip.id ? trip : t)
-        : [...prev.trips, trip];
+        ? prev.trips.map(t => t.id === finalTrip.id ? finalTrip : t)
+        : [...prev.trips, finalTrip];
       return { ...prev, trips };
     });
-  }, []);
+  }, [state.trips]);
 
   const deleteTrip = useCallback(async (id: string) => {
     await db.deleteTrip(id);
@@ -197,6 +221,76 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     set('settings', s);
   }, []);
 
+  // PROVINCES
+  const saveProvince = useCallback(async (p: Province) => {
+    await db.upsertProvince(p);
+    setState(prev => {
+      const idx = prev.provinces.findIndex(x => x.id === p.id);
+      const provinces = idx >= 0 ? prev.provinces.map(x => x.id === p.id ? p : x) : [...prev.provinces, p];
+      return { ...prev, provinces };
+    });
+  }, []);
+
+  const deleteProvince = useCallback(async (id: string) => {
+    await db.deleteProvince(id);
+    setState(prev => ({
+      ...prev,
+      provinces: prev.provinces.filter(p => p.id !== id),
+      cities: prev.cities.filter(c => c.province_id !== id),
+      sites: prev.sites.filter(s => !prev.cities.filter(c => c.province_id === id).map(c => c.id).includes(s.city_id)),
+    }));
+  }, []);
+
+  // CITIES
+  const saveCity = useCallback(async (c: City) => {
+    await db.upsertCity(c);
+    setState(prev => {
+      const idx = prev.cities.findIndex(x => x.id === c.id);
+      const cities = idx >= 0 ? prev.cities.map(x => x.id === c.id ? c : x) : [...prev.cities, c];
+      return { ...prev, cities };
+    });
+  }, []);
+
+  const deleteCity = useCallback(async (id: string) => {
+    await db.deleteCity(id);
+    setState(prev => ({
+      ...prev,
+      cities: prev.cities.filter(c => c.id !== id),
+      sites: prev.sites.filter(s => s.city_id !== id),
+      cityDistances: prev.cityDistances.filter(d => d.from_city_id !== id && d.to_city_id !== id),
+    }));
+  }, []);
+
+  // SITES
+  const saveSite = useCallback(async (s: Site) => {
+    await db.upsertSite(s);
+    setState(prev => {
+      const idx = prev.sites.findIndex(x => x.id === s.id);
+      const sites = idx >= 0 ? prev.sites.map(x => x.id === s.id ? s : x) : [...prev.sites, s];
+      return { ...prev, sites };
+    });
+  }, []);
+
+  const deleteSite = useCallback(async (id: string) => {
+    await db.deleteSite(id);
+    setState(prev => ({ ...prev, sites: prev.sites.filter(s => s.id !== id) }));
+  }, []);
+
+  // CITY DISTANCES
+  const saveCityDistance = useCallback(async (d: CityDistance) => {
+    await db.upsertCityDistance(d);
+    setState(prev => {
+      const idx = prev.cityDistances.findIndex(x => x.id === d.id);
+      const cityDistances = idx >= 0 ? prev.cityDistances.map(x => x.id === d.id ? d : x) : [...prev.cityDistances, d];
+      return { ...prev, cityDistances };
+    });
+  }, []);
+
+  const deleteCityDistance = useCallback(async (id: string) => {
+    await db.deleteCityDistance(id);
+    setState(prev => ({ ...prev, cityDistances: prev.cityDistances.filter(d => d.id !== id) }));
+  }, []);
+
   // HELPERS
   const getPartyBalance = useCallback((partyId: string): number => {
     const p = state.parties.find(x => x.id === partyId);
@@ -220,6 +314,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       saveDriver, deleteDriver,
       saveCompliance, deleteCompliance,
       updateSettings,
+      saveProvince, deleteProvince,
+      saveCity, deleteCity,
+      saveSite, deleteSite,
+      saveCityDistance, deleteCityDistance,
       getPartyBalance,
     }}>
       {children}

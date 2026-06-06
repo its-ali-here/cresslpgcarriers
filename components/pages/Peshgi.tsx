@@ -57,7 +57,7 @@ export default function Peshgi() {
             <div className="ledger-header">
               <div>
                 <div style={{ fontSize: 15, fontWeight: 600 }}>
-                  {d.name} <span className="badge badge-gray">{d.role}</span>
+                  {d.name}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--mono)', marginTop: 2 }}>{d.phone || ''}</div>
               </div>

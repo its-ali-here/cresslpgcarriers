@@ -6,6 +6,34 @@ export interface DieselPurchase {
   amount: number;
 }
 
+export interface Province {
+  id: string;
+  name: string;
+}
+
+export interface City {
+  id: string;
+  province_id: string;
+  name: string;
+}
+
+export const SITE_TYPES = ['Plant', 'Refinery', 'Terminal', 'Yard', 'Depot', 'Port', 'Other'] as const;
+export type SiteType = typeof SITE_TYPES[number];
+
+export interface Site {
+  id: string;
+  city_id: string;
+  name: string;
+  type: SiteType;
+}
+
+export interface CityDistance {
+  id: string;
+  from_city_id: string;
+  to_city_id: string;
+  km: number;
+}
+
 export interface Trip {
   id: string;
   no: string;
@@ -16,7 +44,11 @@ export interface Trip {
   driver: string;
   helper: string;
   client: string;
+  from_province: string;
+  from_city: string;
   from: string;
+  to_province: string;
+  to_city: string;
   to: string;
   km: number;
   exp_days: number;
@@ -122,15 +154,12 @@ export interface FleetItem {
 export interface Driver {
   id: string;
   name: string;
-  role: 'Driver' | 'Helper';
   cnic: string;
   phone: string;
   lic: string;
   lic_exp: string;
-  daily: number;
   salary: number;
-  status: string;
-  addr: string;
+  vehicle_id: string;
 }
 
 export interface ComplianceDoc {
@@ -162,4 +191,8 @@ export interface AppDB {
   drivers: Driver[];
   compliance: ComplianceDoc[];
   settings: Settings;
+  provinces: Province[];
+  cities: City[];
+  sites: Site[];
+  cityDistances: CityDistance[];
 }

@@ -1,8 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useApp } from '@/context/AppContext';
 import { rs, daysLeft } from '@/lib/utils';
+
+const PakistanMap = dynamic(() => import('@/components/PakistanMap'), { ssr: false });
 
 export default function Dashboard() {
   const { trips, parties, transactions, expenses, fleet, drivers, compliance, getPartyBalance } = useApp();
@@ -19,7 +22,7 @@ export default function Dashboard() {
   const net = revenue - tripExp - genExp;
   const totalReceivable = parties.filter(p => p.type === 'client').reduce((s, p) => s + Math.max(0, getPartyBalance(p.id)), 0);
   const activeFleet = fleet.filter(f => f.status === 'Active').length;
-  const activeDrivers = drivers.filter(d => d.status === 'Active').length;
+  const activeDrivers = drivers.length;
 
   const recentTrips = [...trips].sort((a, b) => (b.load_date || '').localeCompare(a.load_date || '')).slice(0, 6);
 
@@ -98,23 +101,10 @@ export default function Dashboard() {
           </div>
         </div>
         <div>
-          <div className="section-label">Alerts</div>
-          {alerts.length === 0 ? (
-            <div className="empty" style={{ padding: '1rem' }}><div className="empty-icon" style={{ fontSize: 20 }}>✅</div>No urgent alerts</div>
-          ) : (
-            <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius2)' }}>
-              {alerts.map((a, i) => {
-                const badge = a.days < 0 ? 'badge-red' : a.days <= 14 ? 'badge-red' : a.days <= 30 ? 'badge-yellow' : 'badge-blue';
-                const label = a.days < 0 ? 'Expired' : `${a.days}d left`;
-                return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: i < alerts.length - 1 ? '1px solid var(--border)' : 'none', fontSize: 12.5 }}>
-                    <span>{a.text}</span>
-                    <span className={`badge ${badge}`}>{label}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <div className="section-label">Operations map</div>
+          <div style={{ height: 360, borderRadius: 'var(--radius2)', overflow: 'hidden', border: '1px solid var(--border)' }}>
+            <PakistanMap />
+          </div>
         </div>
       </div>
     </div>

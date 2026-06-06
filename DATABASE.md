@@ -21,8 +21,6 @@ CREATE TABLE public.trips (
   delivered numeric DEFAULT 0,
   lpg_diff text,
   lpg_bill text,
-  lpg_rent_mt numeric DEFAULT 0,
-  lpg_rent_total numeric DEFAULT 0,
   billed numeric DEFAULT 0,
   peshgi numeric DEFAULT 0,
   status text,
@@ -39,9 +37,6 @@ CREATE TABLE public.trips (
   motorway numeric DEFAULT 0,
   grease numeric DEFAULT 0,
   air numeric DEFAULT 0,
-  engine_oil_litres numeric DEFAULT 0,
-  engine_oil_price numeric DEFAULT 0,
-  engine_oil_cost numeric DEFAULT 0,
   other_exp numeric DEFAULT 0,
   other_notes text,
   delay_reason text,
@@ -57,6 +52,11 @@ CREATE TABLE public.trips (
   total_exp numeric DEFAULT 0,
   net_pl numeric DEFAULT 0,
   created_at timestamp with time zone DEFAULT now(),
+  lpg_rent_mt numeric DEFAULT 0,
+  lpg_rent_total numeric DEFAULT 0,
+  engine_oil_litres numeric DEFAULT 0,
+  engine_oil_price numeric DEFAULT 0,
+  engine_oil_cost numeric DEFAULT 0,
   CONSTRAINT trips_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.parties (
@@ -115,10 +115,10 @@ CREATE TABLE public.fleet (
   status text DEFAULT 'Active'::text,
   service date,
   notes text,
+  created_at timestamp with time zone DEFAULT now(),
   bowser_make text,
   bowser_no text,
   axles numeric DEFAULT 0,
-  created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT fleet_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.drivers (

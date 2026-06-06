@@ -9,10 +9,6 @@ export default function Fleet() {
   const { fleet, deleteFleet } = useApp();
   const [editing, setEditing] = useState<FleetItem | null | 'new'>(null);
 
-  const statusBadge: Record<string, string> = {
-    Active: 'badge-green', 'In maintenance': 'badge-yellow', Inactive: 'badge-red',
-  };
-
   async function handleDelete(id: string) {
     if (!confirm('Delete this bowser?')) return;
     await deleteFleet(id);
@@ -30,20 +26,19 @@ export default function Fleet() {
       <div className="table-wrap">
         <table>
           <thead>
-            <tr><th>Reg no.</th><th>Make / model</th><th>Capacity (kg)</th><th>Year</th><th>Status</th><th>Last service</th><th>Notes</th><th></th></tr>
+            <tr><th>Reg no.</th><th>Vehicle Make</th><th>Capacity (kg)</th><th>Year</th><th>Bowser Make</th><th>Bowser Number</th><th></th></tr>
           </thead>
           <tbody>
             {fleet.length === 0 ? (
-              <tr><td colSpan={8}><div className="empty"><div className="empty-icon">🚛</div>No bowsers added.</div></td></tr>
+              <tr><td colSpan={7}><div className="empty"><div className="empty-icon">🚛</div>No bowsers added.</div></td></tr>
             ) : fleet.map(f => (
               <tr key={f.id}>
                 <td className="mono"><strong>{f.reg}</strong></td>
                 <td>{f.model || '—'}</td>
                 <td className="mono">{f.cap ? f.cap.toLocaleString() : ''}</td>
                 <td>{f.year || '—'}</td>
-                <td><span className={`badge ${statusBadge[f.status] || 'badge-gray'}`}>{f.status}</span></td>
-                <td>{f.service || '—'}</td>
-                <td style={{ fontSize: 12, color: 'var(--text3)' }}>{f.notes || ''}</td>
+                <td>{f.bowser_make || '—'}</td>
+                <td>{f.bowser_no || '—'}</td>
                 <td>
                   <div className="row-actions">
                     <button className="btn btn-ghost btn-sm" onClick={() => setEditing(f)}>✏</button>

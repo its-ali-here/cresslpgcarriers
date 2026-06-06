@@ -11,9 +11,9 @@ interface Props {
 }
 
 export default function DriverModal({ driver, onClose }: Props) {
-  const { saveDriver } = useApp();
+  const { saveDriver, fleet } = useApp();
   const [form, setForm] = useState<Driver>(driver ?? {
-    id: uid(), name: '', role: 'Driver', cnic: '', phone: '', lic: '', lic_exp: '', daily: 0, salary: 0, status: 'Active', addr: '',
+    id: uid(), name: '', cnic: '', phone: '', lic: '', lic_exp: '', salary: 0, vehicle_id: '',
   });
 
   const set = (k: keyof Driver, v: string | number) => setForm(prev => ({ ...prev, [k]: v }));
@@ -28,34 +28,26 @@ export default function DriverModal({ driver, onClose }: Props) {
     <div className="modal-bg open" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <div className="modal-title">{driver ? 'Edit' : 'Add'} driver / helper</div>
+          <div className="modal-title">{driver ? 'Edit' : 'Add'} driver</div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body">
           <div className="form-grid">
             <div className="form-group"><label>Full name</label><input value={form.name} onChange={e => set('name', e.target.value)} /></div>
             <div className="form-group">
-              <label>Role</label>
-              <select value={form.role} onChange={e => set('role', e.target.value)}>
-                <option>Driver</option>
-                <option>Helper</option>
+              <label>Assigned vehicle</label>
+              <select value={form.vehicle_id} onChange={e => set('vehicle_id', e.target.value)}>
+                <option value="">— None —</option>
+                {fleet.map(v => (
+                  <option key={v.id} value={v.id}>{v.reg}{v.model ? ` — ${v.model}` : ''}</option>
+                ))}
               </select>
             </div>
             <div className="form-group"><label>CNIC</label><input value={form.cnic} onChange={e => set('cnic', e.target.value)} /></div>
             <div className="form-group"><label>Phone</label><input value={form.phone} onChange={e => set('phone', e.target.value)} /></div>
             <div className="form-group"><label>License no.</label><input value={form.lic} onChange={e => set('lic', e.target.value)} /></div>
             <div className="form-group"><label>License expiry</label><input type="date" value={form.lic_exp} onChange={e => set('lic_exp', e.target.value)} /></div>
-            <div className="form-group"><label>Daily allowance (Rs)</label><input type="number" value={form.daily || ''} onChange={e => set('daily', Number(e.target.value))} /></div>
             <div className="form-group"><label>Monthly salary (Rs)</label><input type="number" value={form.salary || ''} onChange={e => set('salary', Number(e.target.value))} /></div>
-            <div className="form-group">
-              <label>Status</label>
-              <select value={form.status} onChange={e => set('status', e.target.value)}>
-                <option>Active</option>
-                <option>On leave</option>
-                <option>Inactive</option>
-              </select>
-            </div>
-            <div className="form-group full"><label>Address</label><textarea style={{ minHeight: 48 }} value={form.addr} onChange={e => set('addr', e.target.value)} /></div>
           </div>
         </div>
         <div className="modal-footer">

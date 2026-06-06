@@ -38,7 +38,7 @@ export default function PeshgiModal({ entry, onClose }: Props) {
             <div className="form-group">
               <label>Driver / helper</label>
               <select value={form.person} onChange={e => set('person', e.target.value)}>
-                {drivers.map(d => <option key={d.id} value={d.id}>{d.name} ({d.role})</option>)}
+                {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </div>
             <div className="form-group">

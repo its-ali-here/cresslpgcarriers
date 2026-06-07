@@ -7,6 +7,7 @@ type Page = string;
 interface Props {
   current: Page;
   onNavigate: (page: Page) => void;
+  open: boolean;
 }
 
 interface NavItem { id: string; label: string; icon: React.ReactNode; }
@@ -56,12 +57,12 @@ const sections: NavSection[] = [
   },
 ];
 
-export default function Sidebar({ current, onNavigate }: Props) {
+export default function Sidebar({ current, onNavigate, open }: Props) {
   const { role } = useUser();
   const isAdmin = role === 'admin';
 
   return (
-    <div className="sidebar">
+    <div className={`sidebar${open ? ' open' : ''}`}>
       {sections.map(sec => {
         if (sec.adminOnly && !isAdmin) return null;
         return (

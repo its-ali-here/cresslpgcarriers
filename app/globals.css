@@ -185,3 +185,74 @@ tr:hover .row-actions { opacity: 1; }
 .login-brand { display: flex; align-items: center; gap: 14px; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 2px solid var(--accent); }
 .login-form { display: flex; flex-direction: column; gap: 16px; }
 .login-error { background: rgba(214,69,69,0.12); border: 1px solid rgba(214,69,69,0.35); color: var(--red); border-radius: var(--radius); padding: 8px 12px; font-size: 12px; font-family: var(--cond); }
+
+/* TOPBAR EXTRAS */
+.topbar-welcome { font-size: 12px; color: #9fb0c9; font-family: var(--cond); letter-spacing: 0.04em; }
+.role-badge { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; font-family: var(--cond); color: var(--accent); text-transform: uppercase; padding: 2px 7px; border: 1px solid var(--accent); border-radius: 4px; }
+.hamburger { display: none; flex-direction: column; justify-content: center; gap: 5px; background: none; border: none; cursor: pointer; padding: 4px; margin-right: 4px; }
+.hamburger span { display: block; width: 22px; height: 2px; background: #fff; border-radius: 2px; }
+
+/* SIDEBAR BACKDROP */
+.sidebar-backdrop { display: none; }
+
+/* MOBILE */
+@media (max-width: 768px) {
+  /* Show hamburger, hide date + welcome on small screens */
+  .hamburger { display: flex; }
+  .topbar-date { display: none; }
+  .topbar-welcome { display: none; }
+
+  /* Sidebar becomes a fixed overlay */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    width: 220px;
+    min-width: 220px;
+    padding-top: 56px;
+  }
+  .sidebar.open { transform: translateX(0); }
+
+  /* Backdrop */
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 199;
+    background: rgba(0,0,0,0.5);
+  }
+
+  /* Row actions always visible (no hover on touch) */
+  .row-actions { opacity: 1; }
+
+  /* Tables scroll horizontally */
+  .table-wrap { overflow-x: auto; }
+
+  /* Modals go full-screen */
+  .modal-bg { padding: 0; align-items: flex-end; }
+  .modal, .modal-wide {
+    width: 100%;
+    max-width: 100%;
+    max-height: 92vh;
+    border-radius: var(--radius2) var(--radius2) 0 0;
+  }
+
+  /* Form grids collapse to single column */
+  .form-grid,
+  .form-grid-3,
+  .cost-grid { grid-template-columns: 1fr; }
+
+  /* Page padding tighter */
+  .page { padding: 1rem 0.75rem; }
+  .page-title { font-size: 20px; }
+
+  /* Ledger header stacks */
+  .ledger-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+
+  /* Metrics shrink */
+  .metrics { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+}

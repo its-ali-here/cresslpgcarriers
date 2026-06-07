@@ -19,13 +19,14 @@ import { useUser } from '@/context/UserContext';
 export default function App() {
   const { role } = useUser();
   const [page, setPage] = useState(role === 'operator' ? 'trips' : 'dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { loading } = useApp();
 
   function navigate(p: string) {
     if (p === 'settings' && role !== 'admin') return;
     setPage(p);
+    setSidebarOpen(false);
   }
-
 
   if (loading) {
     return (
@@ -53,9 +54,12 @@ export default function App() {
 
   return (
     <>
-      <Topbar />
+      <Topbar onMenuToggle={() => setSidebarOpen(o => !o)} />
       <div className="layout">
-        <Sidebar current={page} onNavigate={navigate} />
+        <Sidebar current={page} onNavigate={navigate} open={sidebarOpen} />
+        {sidebarOpen && (
+          <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />
+        )}
         <div className="main">
           {renderPage()}
         </div>

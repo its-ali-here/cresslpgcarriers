@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -13,8 +13,17 @@ export default function LoginScreen() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setError(error.message);
+
+    // Resolve username → email via DB function, then authenticate
+    const { data: email, error: lookupErr } = await supabase.rpc('get_email_by_username', { p_username: username.trim() });
+    if (lookupErr || !email) {
+      setError('Username not found.');
+      setLoading(false);
+      return;
+    }
+
+    const { error: authErr } = await supabase.auth.signInWithPassword({ email, password });
+    if (authErr) setError('Incorrect password.');
     setLoading(false);
   }
 
@@ -39,12 +48,13 @@ export default function LoginScreen() {
           <div className="form-group">
             <label>Username</label>
             <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
+              type="text"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
               placeholder="Enter your username"
               required
               autoFocus
+              autoComplete="username"
             />
           </div>
           <div className="form-group">
@@ -55,6 +65,7 @@ export default function LoginScreen() {
               onChange={e => setPassword(e.target.value)}
               placeholder="Enter your password"
               required
+              autoComplete="current-password"
             />
           </div>
           {error && <div className="login-error">{error}</div>}

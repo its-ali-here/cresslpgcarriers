@@ -10,7 +10,11 @@ const ROLE_LABEL: Record<string, string> = {
   viewer: 'Viewer',
 };
 
-export default function Topbar() {
+interface Props {
+  onMenuToggle: () => void;
+}
+
+export default function Topbar({ onMenuToggle }: Props) {
   const [dateStr, setDateStr] = useState('');
   const { role, name } = useUser();
 
@@ -26,6 +30,9 @@ export default function Topbar() {
   return (
     <div className="topbar">
       <div className="topbar-brand">
+        <button className="hamburger" onClick={onMenuToggle} aria-label="Toggle menu">
+          <span /><span /><span />
+        </button>
         <div className="brand-mark">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 22, height: 22 }}>
             <rect x="1" y="3" width="15" height="13" />
@@ -41,8 +48,8 @@ export default function Topbar() {
       </div>
       <div className="topbar-actions">
         <span className="topbar-date">{dateStr}</span>
-        {name && <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--cond)' }}>{name}</span>}
-        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', fontFamily: 'var(--cond)', color: 'var(--accent)', textTransform: 'uppercase', padding: '2px 7px', border: '1px solid var(--accent)', borderRadius: 4 }}>
+        {name && <span className="topbar-welcome">Welcome, {name}</span>}
+        <span className="role-badge">
           {ROLE_LABEL[role] ?? role}
         </span>
         <button className="btn btn-sm" onClick={handleSignOut}>Sign out</button>

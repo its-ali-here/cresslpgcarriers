@@ -105,6 +105,14 @@ export default function TripModal({ trip, onClose }: Props) {
     tryFillKm(form.from_city, cityName);
   }
 
+  function calcActDays(loadDate: string, offloadDate: string) {
+    if (!loadDate || !offloadDate) return;
+    const diff = Math.max(0, Math.round(
+      (new Date(offloadDate + 'T00:00:00').getTime() - new Date(loadDate + 'T00:00:00').getTime()) / 86400000
+    ));
+    calcOverDays(form.exp_days, diff);
+  }
+
   function calcOverDays(expDays: number, actDays: number) {
     const over = Math.max(0, actDays - expDays);
     const overCost = over > 0 ? (settings.driverDaily + settings.helperDaily) * over : 0;
@@ -211,11 +219,11 @@ export default function TripModal({ trip, onClose }: Props) {
             <div className="form-section">Trip info</div>
             <div className="form-group">
               <label>Load date</label>
-              <DateInput value={form.load_date} onChange={v => set('load_date', v)} />
+              <DateInput value={form.load_date} onChange={v => { set('load_date', v); calcActDays(v, form.offload_date); }} />
             </div>
             <div className="form-group">
               <label>Off-load date</label>
-              <DateInput value={form.offload_date} onChange={v => set('offload_date', v)} />
+              <DateInput value={form.offload_date} onChange={v => { set('offload_date', v); calcActDays(form.load_date, v); }} />
             </div>
             <div className="form-group">
               <label>Vehicle (reg no.)</label>
@@ -281,7 +289,7 @@ export default function TripModal({ trip, onClose }: Props) {
             </div>
             <div className="form-group"><label>Distance (km)</label><input type="number" value={form.km || ''} onChange={e => set('km', Number(e.target.value))} /></div>
             <div className="form-group"><label>Expected days</label><input type="number" value={form.exp_days || ''} onChange={e => calcOverDays(Number(e.target.value), form.act_days)} /></div>
-            <div className="form-group"><label>Actual days</label><input type="number" value={form.act_days || ''} onChange={e => calcOverDays(form.exp_days, Number(e.target.value))} /></div>
+            <div className="form-group"><label>Actual days</label><input type="number" readOnly value={form.act_days || ''} style={{ color: 'var(--accent)' }} /></div>
             <div className="form-group"><label>Over days</label><input type="number" readOnly value={form.over_days || ''} style={{ color: 'var(--accent)' }} /></div>
 
             <div className="form-section">Trip expenses</div>

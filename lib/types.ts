@@ -14,6 +14,16 @@ export interface DieselPurchase {
   amount: number;
 }
 
+export interface OtherExpense {
+  label: string;
+  amount: number;
+}
+
+export interface ExpenseCategory {
+  id: string;
+  name: string;
+}
+
 export interface Province {
   id: string;
   name: string;
@@ -66,12 +76,15 @@ export interface Trip {
   delivered: number;
   lpg_diff: string;
   lpg_bill: string;
+  lpg_rate_kg: number;
+  lpg_gl_pkr: number;
   lpg_rent_mt: number;
   lpg_rent_total: number;
   billed: number;
   peshgi: number;
   status: string;
   toll: number;
+  daily_rate: number;
   driver_exp: number;
   helper_exp: number;
   overday_cost: number;
@@ -88,9 +101,10 @@ export interface Trip {
   engine_oil_price: number;
   engine_oil_cost: number;
   other_exp: number;
-  other_notes: string;
+  other_expense_items?: OtherExpense[];
   delay_reason: string;
   delay_notes: string;
+  diesel_exp?: number;
   diesel_open: number;
   diesel_close: number;
   diesel_total: number;
@@ -103,6 +117,7 @@ export interface Trip {
   net_pl: number;
   approved?: boolean;
   created_by?: string;
+  pending_edit?: Record<string, unknown> | null;
 }
 
 export interface Party {
@@ -205,4 +220,5 @@ export interface AppDB {
   cities: City[];
   sites: Site[];
   cityDistances: CityDistance[];
+  expenseCategories: ExpenseCategory[];
 }

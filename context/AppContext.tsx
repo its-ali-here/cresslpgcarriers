@@ -4,7 +4,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import type {
   AppDB, Trip, Party, Transaction, Expense, PeshgiEntry,
   FleetItem, Driver, ComplianceDoc, Settings,
-  Province, City, Site, CityDistance,
+  Province, City, Site, CityDistance, ExpenseCategory,
 } from '@/lib/types';
 import * as db from '@/lib/db';
 import { uid } from '@/lib/utils';
@@ -15,6 +15,8 @@ interface AppContextValue extends AppDB {
   saveTrip: (trip: Trip) => Promise<void>;
   deleteTrip: (id: string) => Promise<void>;
   approveTrip: (id: string) => Promise<void>;
+  approvePendingEdit: (id: string) => Promise<void>;
+  rejectPendingEdit: (id: string) => Promise<void>;
   // Parties
   saveParty: (party: Party) => Promise<void>;
   deleteParty: (id: string) => Promise<void>;
@@ -50,6 +52,9 @@ interface AppContextValue extends AppDB {
   // City distances
   saveCityDistance: (d: CityDistance) => Promise<void>;
   deleteCityDistance: (id: string) => Promise<void>;
+  // Expense categories
+  saveExpenseCategory: (cat: ExpenseCategory) => Promise<void>;
+  deleteExpenseCategory: (id: string) => Promise<void>;
   // Helpers
   getPartyBalance: (partyId: string) => number;
 }
@@ -74,7 +79,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     trips: [], parties: [], transactions: [], expenses: [],
     peshgi: [], fleet: [], drivers: [], compliance: [],
     settings: { company: 'CRESS LPG CARRIERS', yard: '', driverDaily: 0, helperDaily: 0, tripDays: 0, dieselBench: 2.6 },
-    provinces: [], cities: [], sites: [], cityDistances: [],
+    provinces: [], cities: [], sites: [], cityDistances: [], expenseCategories: [],
   });
 
   useEffect(() => {
@@ -115,6 +120,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       trips: prev.trips.map(t => t.id === id ? { ...t, approved: true } : t),
     }));
   }, []);
+
+  const approvePendingEdit = useCallback(async (id: string) => {
+    const trip = state.trips.find(t => t.id === id);
+    if (!trip?.pending_edit) return;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { __edited_by, __edited_at, ...editData } = trip.pending_edit as Record<string, unknown>;
+    const merged: Trip = { ...trip, ...(editData as Partial<Trip>), pending_edit: null };
+    await db.upsertTrip(merged);
+    const next = state.trips.map(t => t.id === id ? merged : t);
+    const renumbered = assignNos(next);
+    const changed = renumbered.filter(r => state.trips.find(t => t.id === r.id)?.no !== r.no);
+    if (changed.length) await db.batchUpdateTripNos(changed.map(t => ({ id: t.id, no: t.no })));
+    setState(prev => ({ ...prev, trips: renumbered }));
+  }, [state.trips]);
+
+  const rejectPendingEdit = useCallback(async (id: string) => {
+    const trip = state.trips.find(t => t.id === id);
+    if (!trip) return;
+    const updated: Trip = { ...trip, pending_edit: null };
+    await db.upsertTrip(updated);
+    setState(prev => ({
+      ...prev,
+      trips: prev.trips.map(t => t.id === id ? updated : t),
+    }));
+  }, [state.trips]);
 
   // PARTIES
   const saveParty = useCallback(async (party: Party) => {
@@ -310,6 +340,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setState(prev => ({ ...prev, cityDistances: prev.cityDistances.filter(d => d.id !== id) }));
   }, []);
 
+  // EXPENSE CATEGORIES
+  const saveExpenseCategory = useCallback(async (cat: ExpenseCategory) => {
+    await db.upsertExpenseCategory(cat);
+    setState(prev => {
+      const idx = prev.expenseCategories.findIndex(x => x.id === cat.id);
+      const expenseCategories = idx >= 0 ? prev.expenseCategories.map(x => x.id === cat.id ? cat : x) : [...prev.expenseCategories, cat];
+      return { ...prev, expenseCategories };
+    });
+  }, []);
+
+  const deleteExpenseCategory = useCallback(async (id: string) => {
+    await db.deleteExpenseCategory(id);
+    setState(prev => ({ ...prev, expenseCategories: prev.expenseCategories.filter(c => c.id !== id) }));
+  }, []);
+
   // HELPERS
   const getPartyBalance = useCallback((partyId: string): number => {
     const p = state.parties.find(x => x.id === partyId);
@@ -324,7 +369,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider value={{
       ...state, loading,
-      saveTrip, deleteTrip, approveTrip,
+      saveTrip, deleteTrip, approveTrip, approvePendingEdit, rejectPendingEdit,
       saveParty, deleteParty,
       addTransaction, deleteTransaction,
       saveExpense, deleteExpense,
@@ -337,6 +382,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       saveCity, deleteCity,
       saveSite, deleteSite,
       saveCityDistance, deleteCityDistance,
+      saveExpenseCategory, deleteExpenseCategory,
       getPartyBalance,
     }}>
       {children}

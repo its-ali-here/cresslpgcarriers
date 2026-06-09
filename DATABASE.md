@@ -38,7 +38,6 @@ CREATE TABLE public.trips (
   grease numeric DEFAULT 0,
   air numeric DEFAULT 0,
   other_exp numeric DEFAULT 0,
-  other_notes text,
   delay_reason text,
   delay_notes text,
   diesel_open numeric DEFAULT 0,
@@ -63,6 +62,12 @@ CREATE TABLE public.trips (
   to_province text,
   approved boolean NOT NULL DEFAULT true,
   created_by text,
+  lpg_rate_kg numeric DEFAULT 0,
+  lpg_gl_pkr numeric DEFAULT 0,
+  daily_rate numeric DEFAULT 0,
+  diesel_exp numeric DEFAULT 0,
+  other_expense_items jsonb DEFAULT '[]'::jsonb,
+  pending_edit jsonb,
   CONSTRAINT trips_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.parties (
@@ -199,4 +204,9 @@ CREATE TABLE public.profiles (
   name text,
   CONSTRAINT profiles_pkey PRIMARY KEY (id),
   CONSTRAINT user_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.expense_categories (
+  id text NOT NULL,
+  name text NOT NULL,
+  CONSTRAINT expense_categories_pkey PRIMARY KEY (id)
 );

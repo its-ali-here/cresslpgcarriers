@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import type {
   Trip, Party, Transaction, Expense, PeshgiEntry,
   FleetItem, Driver, ComplianceDoc, Settings, AppDB,
-  Province, City, Site, CityDistance, UserProfile,
+  Province, City, Site, CityDistance, UserProfile, ExpenseCategory,
 } from './types';
 
 // Convert empty strings to null for date columns so Postgres doesn't reject them.
@@ -58,6 +58,12 @@ export async function fetchUserProfile(userId: string): Promise<UserProfile | nu
   const { data } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
   if (!data) return null;
   return { userId: data.id, role: data.role, name: data.name || '' };
+}
+
+export async function fetchAllProfiles(): Promise<UserProfile[]> {
+  const { data } = await supabase.from('profiles').select('*').order('name');
+  if (!data) return [];
+  return data.map(r => ({ userId: r.id, role: r.role, name: r.name || '' }));
 }
 
 export async function approveTrip(id: string): Promise<void> {
@@ -274,6 +280,23 @@ export async function deleteSite(id: string): Promise<void> {
   if (error) throw error;
 }
 
+// ---- EXPENSE CATEGORIES ----
+export async function fetchExpenseCategories(): Promise<ExpenseCategory[]> {
+  return graceful(async () => {
+    const { data, error } = await supabase.from('expense_categories').select('*').order('name');
+    if (error) return [];
+    return (data || []) as ExpenseCategory[];
+  });
+}
+export async function upsertExpenseCategory(cat: ExpenseCategory): Promise<void> {
+  const { error } = await supabase.from('expense_categories').upsert(cat);
+  if (error) throw error;
+}
+export async function deleteExpenseCategory(id: string): Promise<void> {
+  const { error } = await supabase.from('expense_categories').delete().eq('id', id);
+  if (error) throw error;
+}
+
 // ---- CITY DISTANCES ----
 export async function fetchCityDistances(): Promise<CityDistance[]> {
   return graceful(async () => {
@@ -296,15 +319,16 @@ export async function fetchAll(): Promise<AppDB> {
   const [
     trips, parties, transactions, expenses, peshgi,
     fleet, drivers, compliance, settings,
-    provinces, cities, sites, cityDistances,
+    provinces, cities, sites, cityDistances, expenseCategories,
   ] = await Promise.all([
     fetchTrips(), fetchParties(), fetchTransactions(), fetchExpenses(),
     fetchPeshgi(), fetchFleet(), fetchDrivers(), fetchCompliance(), fetchSettings(),
     fetchProvinces(), fetchCities(), fetchSites(), fetchCityDistances(),
+    fetchExpenseCategories(),
   ]);
   return {
     trips, parties, transactions, expenses, peshgi,
     fleet, drivers, compliance, settings,
-    provinces, cities, sites, cityDistances,
+    provinces, cities, sites, cityDistances, expenseCategories,
   };
 }

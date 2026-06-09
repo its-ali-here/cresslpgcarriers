@@ -20,13 +20,14 @@ function costMt(t: Trip): string {
 }
 
 export default function Trips() {
-  const { trips, deleteTrip, approveTrip } = useApp();
+  const { trips, deleteTrip, approveTrip, approvePendingEdit, rejectPendingEdit } = useApp();
   const { role } = useUser();
   const [editing, setEditing] = useState<Trip | null | 'new'>(null);
   const [page, setPage] = useState(1);
 
   const isAdmin    = role === 'admin';
-  const canAddTrip = role === 'admin' || role === 'operator';
+  const isOperator = role === 'operator';
+  const canAddTrip = isAdmin || isOperator;
 
   const sorted = [...trips].sort((a, b) => (b.no || '').localeCompare(a.no || ''));
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
@@ -67,10 +68,20 @@ export default function Trips() {
             {sorted.length === 0 ? (
               <tr><td colSpan={11}><div className="empty"><div className="empty-icon">🚛</div>No trips logged yet. Click &quot;New trip&quot; to start.</div></td></tr>
             ) : pageTrips.map(t => (
-              <tr key={t.id} style={t.approved === false ? { background: 'rgba(255,200,0,0.10)' } : undefined}>
+              <tr key={t.id} style={t.approved === false || t.pending_edit ? { background: 'rgba(255,200,0,0.10)' } : undefined}>
                 <td className="mono">
                   {t.no || '—'}
                   {t.approved === false && <span className="badge badge-yellow" style={{ marginLeft: 6 }}>Pending</span>}
+                  {t.pending_edit && (() => {
+                    const by = (t.pending_edit as Record<string, unknown>).__edited_by as string | undefined;
+                    const at = (t.pending_edit as Record<string, unknown>).__edited_at as string | undefined;
+                    const when = at ? new Date(at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : null;
+                    return (
+                      <span className="badge badge-yellow" style={{ marginLeft: 6 }} title={[by, when].filter(Boolean).join(' · ')}>
+                        Edit pending{by ? ` · ${by}` : ''}{when ? ` · ${when}` : ''}
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td>{fmtDate(t.load_date)}</td>
                 <td className="mono">{t.vehicle || '—'}</td>
@@ -87,9 +98,15 @@ export default function Trips() {
                 <td>
                   <div className="row-actions">
                     {isAdmin && t.approved === false && (
-                      <button className="btn btn-ghost btn-sm" title="Approve trip" onClick={() => handleApprove(t.id)}>✓</button>
+                      <button className="btn btn-ghost btn-sm" title="Approve new trip" onClick={() => handleApprove(t.id)}>✓</button>
                     )}
-                    {isAdmin && <button className="btn btn-ghost btn-sm" onClick={() => setEditing(t)}>✏</button>}
+                    {isAdmin && t.pending_edit && (
+                      <>
+                        <button className="btn btn-ghost btn-sm" title="Apply pending edit" onClick={() => approvePendingEdit(t.id)}>✓</button>
+                        <button className="btn btn-ghost btn-sm btn-danger" title="Reject pending edit" onClick={() => rejectPendingEdit(t.id)}>✗</button>
+                      </>
+                    )}
+                    {(isAdmin || isOperator) && <button className="btn btn-ghost btn-sm" title="Edit trip" onClick={() => setEditing(t)}>✏</button>}
                     {isAdmin && <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDelete(t.id)}>✕</button>}
                   </div>
                 </td>

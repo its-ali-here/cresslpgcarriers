@@ -7,6 +7,12 @@ import { rs } from '@/lib/utils';
 import type { Expense } from '@/lib/types';
 import ExpenseModal from '../modals/ExpenseModal';
 
+function monthLabel(ym: string) {
+  const [y, m] = ym.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[parseInt(m, 10) - 1]} ${y}`;
+}
+
 export default function Expenses() {
   const { expenses, deleteExpense } = useApp();
   const { role } = useUser();
@@ -15,6 +21,13 @@ export default function Expenses() {
 
   const sorted = [...expenses].sort((a, b) => b.date.localeCompare(a.date));
   const total = expenses.reduce((s, e) => s + e.amount, 0);
+
+  const byMonth: Record<string, number> = {};
+  for (const e of expenses) {
+    const ym = e.date.slice(0, 7);
+    byMonth[ym] = (byMonth[ym] ?? 0) + e.amount;
+  }
+  const monthRows = Object.entries(byMonth).sort((a, b) => b[0].localeCompare(a[0]));
 
   async function handleDelete(id: string) {
     if (!confirm('Delete this expense?')) return;
@@ -25,7 +38,7 @@ export default function Expenses() {
     <div className="page">
       <div className="page-header">
         <div>
-          <div className="page-title">General expenses</div>
+          <div className="page-title">Overheads</div>
           <div className="page-sub">salaries, rent, fixed overheads</div>
         </div>
         <div className="header-actions">
@@ -35,7 +48,7 @@ export default function Expenses() {
 
       <div className="metrics">
         <div className="metric">
-          <div className="metric-label">Total expenses</div>
+          <div className="metric-label">Total</div>
           <div className="metric-value red">{rs(total)}</div>
         </div>
         <div className="metric">
@@ -43,6 +56,24 @@ export default function Expenses() {
           <div className="metric-value">{expenses.length}</div>
         </div>
       </div>
+
+      {monthRows.length > 0 && (
+        <div className="table-wrap" style={{ marginBottom: '1.5rem' }}>
+          <table>
+            <thead>
+              <tr><th>Month</th><th>Total cost</th></tr>
+            </thead>
+            <tbody>
+              {monthRows.map(([ym, amt]) => (
+                <tr key={ym}>
+                  <td>{monthLabel(ym)}</td>
+                  <td className="mono" style={{ color: 'var(--red)' }}>{rs(amt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="table-wrap">
         <table>

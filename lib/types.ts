@@ -24,6 +24,11 @@ export interface ExpenseCategory {
   name: string;
 }
 
+export interface DieselSupplier {
+  id: string;
+  name: string;
+}
+
 export interface Province {
   id: string;
   name: string;
@@ -58,6 +63,8 @@ export interface Trip {
   month: string;
   load_date: string;
   offload_date: string;
+  trip_start_date: string;
+  trip_end_date: string;
   vehicle: string;
   driver: string;
   helper: string;
@@ -105,6 +112,7 @@ export interface Trip {
   delay_reason: string;
   delay_notes: string;
   diesel_exp?: number;
+  diesel_diff_resp?: string;
   diesel_open: number;
   diesel_close: number;
   diesel_total: number;
@@ -120,28 +128,7 @@ export interface Trip {
   pending_edit?: Record<string, unknown> | null;
 }
 
-export interface Party {
-  id: string;
-  type: 'client' | 'fuel' | 'vendor';
-  name: string;
-  contact: string;
-  phone: string;
-  city: string;
-  addr: string;
-  notes: string;
-  opening: number;
-  bal_type: 'dr' | 'cr';
-}
 
-export interface Transaction {
-  id: string;
-  party: string;
-  date: string;
-  type: 'dr' | 'cr';
-  amount: number;
-  ref: string;
-  desc: string;
-}
 
 export interface Expense {
   id: string;
@@ -152,50 +139,36 @@ export interface Expense {
   ref: string;
 }
 
-export interface PeshgiEntry {
-  id: string;
-  date: string;
-  person: string;
-  type: 'advance' | 'salary' | 'deduction' | 'settlement';
-  amount: number;
-  trip: string;
-  notes: string;
-}
 
 export interface FleetItem {
   id: string;
-  reg: string;
-  model: string;
-  cap: number;
-  year: string;
-  status: string;
-  service: string;
-  notes: string;
   bowser_make: string;
-  bowser_no: string;
-  axles: number;
+  bowser_year: string;
+  cap: number;
+  status: string;
+  rent_per_month: number;
+  approved?: boolean;
+  created_by?: string;
+  pending_edit?: Record<string, unknown> | null;
 }
+
+export const BOWSER_STATUSES = ['Running in fleet', 'Rented out', 'Vacant', 'Maintenance'] as const;
+export type BowserStatus = typeof BOWSER_STATUSES[number];
 
 export interface Driver {
   id: string;
-  name: string;
+  vehicle_no: string;
+  vehicle_make: string;
+  vehicle_year: string;
+  bowser_id: string;
+  driver_name: string;
   cnic: string;
   phone: string;
-  lic: string;
-  lic_exp: string;
-  salary: number;
-  vehicle_id: string;
+  approved?: boolean;
+  created_by?: string;
+  pending_edit?: Record<string, unknown> | null;
 }
 
-export interface ComplianceDoc {
-  id: string;
-  vehicle: string;
-  doc_type: string;
-  ref: string;
-  issue: string;
-  expiry: string;
-  notes: string;
-}
 
 export interface Settings {
   company: string;
@@ -208,17 +181,14 @@ export interface Settings {
 
 export interface AppDB {
   trips: Trip[];
-  parties: Party[];
-  transactions: Transaction[];
   expenses: Expense[];
-  peshgi: PeshgiEntry[];
   fleet: FleetItem[];
   drivers: Driver[];
-  compliance: ComplianceDoc[];
   settings: Settings;
   provinces: Province[];
   cities: City[];
   sites: Site[];
   cityDistances: CityDistance[];
   expenseCategories: ExpenseCategory[];
+  dieselSuppliers: DieselSupplier[];
 }

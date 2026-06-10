@@ -3,8 +3,8 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useUser } from '@/context/UserContext';
-import { uid, today, rs } from '@/lib/utils';
-import type { Trip, DieselPurchase, OtherExpense, ExpenseCategory, Party } from '@/lib/types';
+import { uid, today, rs, arrowNavigate, round2 } from '@/lib/utils';
+import type { Trip, DieselPurchase, OtherExpense, ExpenseCategory, DieselSupplier } from '@/lib/types';
 import { SITE_TYPES as SITE_TYPES_LIST } from '@/lib/types';
 
 interface Props {
@@ -46,7 +46,7 @@ function DateInput({ value, onChange, placeholder, style }: { value: string; onC
         ref={ref}
         type="date"
         value={value}
-        onChange={e => onChange(e.target.value)}
+        onChange={e => { onChange(e.target.value); e.target.blur(); }}
         style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }}
         tabIndex={-1}
       />
@@ -56,7 +56,7 @@ function DateInput({ value, onChange, placeholder, style }: { value: string; onC
 
 function emptyForm(settings: { driverDaily: number; helperDaily: number; tripDays: number }): TripForm {
   return {
-    no: '', month: '', load_date: today(), offload_date: '', vehicle: '', driver: '', helper: '', client: '',
+    no: '', month: '', load_date: today(), offload_date: '', trip_start_date: '', trip_end_date: '', vehicle: '', driver: '', helper: '', client: '',
     from_province: '', from_city: '', from: '', to_province: '', to_city: '', to: '',
     km: 0, exp_days: settings.tripDays || 0, act_days: 0, over_days: 0,
     lifted: 0, delivered: 0, lpg_diff: '', lpg_bill: 'absorbed', lpg_rate_kg: 0, lpg_gl_pkr: 0, lpg_rent_mt: 0, lpg_rent_total: 0,
@@ -81,7 +81,7 @@ function tripToForm(t: Trip): TripForm {
 }
 
 export default function TripModal({ trip, onClose }: Props) {
-  const { fleet, parties, settings, provinces, cities, sites, cityDistances, expenseCategories, saveTrip, saveSite, saveParty, saveExpenseCategory } = useApp();
+  const { drivers, settings, provinces, cities, sites, cityDistances, expenseCategories, dieselSuppliers, saveTrip, saveSite, saveCity, saveExpenseCategory, saveDieselSupplier } = useApp();
   const { userId, role, name: userName } = useUser();
 
   // Operators editing an approved trip see their pending changes (if any); admins always see main data
@@ -116,16 +116,18 @@ export default function TripModal({ trip, onClose }: Props) {
   const [toNewSiteName, setToNewSiteName] = useState('');
   const [toNewSiteType, setToNewSiteType] = useState<typeof SITE_TYPES_LIST[number]>('Other');
 
-  const [clientAdding, setClientAdding] = useState(false);
-  const [newClientName, setNewClientName] = useState('');
+  const [fromCityAdding, setFromCityAdding] = useState(false);
+  const [fromNewCityName, setFromNewCityName] = useState('');
+  const [toCityAdding, setToCityAdding] = useState(false);
+  const [toNewCityName, setToNewCityName] = useState('');
   const [pendingCatRow, setPendingCatRow] = useState<number | null>(null);
   const [newCatName, setNewCatName] = useState('');
+  const [pendingSupplierRow, setPendingSupplierRow] = useState<number | null>(null);
+  const [newSupplierName, setNewSupplierName] = useState('');
 
   const set = useCallback(<K extends keyof TripForm>(k: K, v: TripForm[K]) =>
     setForm(prev => ({ ...prev, [k]: v })), []);
 
-  const fuelSuppliers = parties.filter(p => p.type === 'fuel');
-  const clients = parties.filter(p => p.type === 'client');
 
   function handleVehicleChange(reg: string) {
     setForm(prev => ({ ...prev, vehicle: reg }));
@@ -145,23 +147,51 @@ export default function TripModal({ trip, onClose }: Props) {
   function handleFromProvince(prov: string) {
     setForm(prev => ({ ...prev, from_province: prov, from_city: '', from: '' }));
     setFromSiteAdding(false);
+    setFromCityAdding(false);
   }
 
   function handleFromCity(cityName: string) {
     setForm(prev => ({ ...prev, from_city: cityName, from: '' }));
     setFromSiteAdding(false);
+    setFromCityAdding(false);
     tryFillKm(cityName, form.to_city);
   }
 
   function handleToProvince(prov: string) {
     setForm(prev => ({ ...prev, to_province: prov, to_city: '', to: '' }));
     setToSiteAdding(false);
+    setToCityAdding(false);
   }
 
   function handleToCity(cityName: string) {
     setForm(prev => ({ ...prev, to_city: cityName, to: '' }));
     setToSiteAdding(false);
+    setToCityAdding(false);
     tryFillKm(form.from_city, cityName);
+  }
+
+  async function handleSaveFromCity() {
+    const name = fromNewCityName.trim();
+    if (!name) return;
+    const provinceId = provinces.find(p => p.name === form.from_province)?.id;
+    if (!provinceId) return;
+    await saveCity({ id: uid(), province_id: provinceId, name });
+    setForm(prev => ({ ...prev, from_city: name, from: '' }));
+    setFromCityAdding(false);
+    setFromNewCityName('');
+    tryFillKm(name, form.to_city);
+  }
+
+  async function handleSaveToCity() {
+    const name = toNewCityName.trim();
+    if (!name) return;
+    const provinceId = provinces.find(p => p.name === form.to_province)?.id;
+    if (!provinceId) return;
+    await saveCity({ id: uid(), province_id: provinceId, name });
+    setForm(prev => ({ ...prev, to_city: name, to: '' }));
+    setToCityAdding(false);
+    setToNewCityName('');
+    tryFillKm(form.from_city, name);
   }
 
   async function handleSaveFromSite() {
@@ -186,16 +216,6 @@ export default function TripModal({ trip, onClose }: Props) {
     setToNewSiteName('');
   }
 
-  async function handleSaveNewClient() {
-    const name = newClientName.trim();
-    if (!name) return;
-    const newParty: Party = { id: uid(), type: 'client', name, contact: '', phone: '', city: '', addr: '', notes: '', opening: 0, bal_type: 'dr' };
-    await saveParty(newParty);
-    set('client', newParty.id);
-    setClientAdding(false);
-    setNewClientName('');
-  }
-
   async function handleSaveNewCat() {
     const name = newCatName.trim();
     if (!name) return;
@@ -206,11 +226,21 @@ export default function TripModal({ trip, onClose }: Props) {
     setNewCatName('');
   }
 
-  function calcActDays(loadDate: string, offloadDate: string) {
-    if (!loadDate || !offloadDate) return;
+  async function handleSaveNewSupplier() {
+    const name = newSupplierName.trim();
+    if (!name) return;
+    const supplier: DieselSupplier = { id: uid(), name };
+    await saveDieselSupplier(supplier);
+    if (pendingSupplierRow !== null) updateDieselRow(pendingSupplierRow, 'supplier', name);
+    setPendingSupplierRow(null);
+    setNewSupplierName('');
+  }
+
+  function calcActDays(startDate: string, endDate: string) {
+    if (!startDate || !endDate) return;
     const diff = Math.max(0, Math.round(
-      (new Date(offloadDate + 'T00:00:00').getTime() - new Date(loadDate + 'T00:00:00').getTime()) / 86400000
-    ));
+      (new Date(endDate + 'T00:00:00').getTime() - new Date(startDate + 'T00:00:00').getTime()) / 86400000
+    )) + 1;
     calcOverDays(form.exp_days, diff);
   }
 
@@ -276,10 +306,10 @@ export default function TripModal({ trip, onClose }: Props) {
       if (key === 'litres' || key === 'price') {
         const ltr = key === 'litres' ? Number(value) : rows[index].litres;
         const prc = key === 'price' ? Number(value) : rows[index].price;
-        rows[index].amount = ltr * prc;
+        rows[index].amount = round2(ltr * prc);
       }
       const totalLtr = rows.reduce((s, r) => s + (r.litres || 0), 0);
-      const totalCost = rows.reduce((s, r) => s + (r.amount || 0), 0);
+      const totalCost = round2(rows.reduce((s, r) => s + (r.amount || 0), 0));
       const open = form.diesel_open || 0;
       const close = form.diesel_close || 0;
       const consumed = open + totalLtr - close;
@@ -292,7 +322,7 @@ export default function TripModal({ trip, onClose }: Props) {
 
   function recalcDiesel(open: number, close: number) {
     const totalLtr = dieselRows.reduce((s, r) => s + (r.litres || 0), 0);
-    const totalCost = dieselRows.reduce((s, r) => s + (r.amount || 0), 0);
+    const totalCost = round2(dieselRows.reduce((s, r) => s + (r.amount || 0), 0));
     const consumed = open + totalLtr - close;
     const km = form.km || 0;
     const avg = consumed > 0 && km > 0 ? (km / consumed).toFixed(2) : '';
@@ -307,7 +337,7 @@ export default function TripModal({ trip, onClose }: Props) {
     setDieselRows(prev => {
       const rows = prev.filter((_, i) => i !== index);
       const totalLtr = rows.reduce((s, r) => s + (r.litres || 0), 0);
-      const totalCost = rows.reduce((s, r) => s + (r.amount || 0), 0);
+      const totalCost = round2(rows.reduce((s, r) => s + (r.amount || 0), 0));
       const consumed = (form.diesel_open || 0) + totalLtr - (form.diesel_close || 0);
       const avg = consumed > 0 && form.km > 0 ? (form.km / consumed).toFixed(2) : '';
       setForm(fp => ({ ...fp, diesel_total: totalLtr, diesel_consumed: consumed, diesel_avg: avg, diesel_cost: totalCost }));
@@ -345,7 +375,6 @@ export default function TripModal({ trip, onClose }: Props) {
     load_date: !form.load_date,
     offload_date: !form.offload_date,
     vehicle: !form.vehicle,
-    client: !form.client,
     from_province: !form.from_province,
     from_city: !form.from_city,
     from: !form.from && !fromSiteAdding,
@@ -384,42 +413,33 @@ export default function TripModal({ trip, onClose }: Props) {
           <div className="modal-title">{trip ? 'Edit trip' : 'New trip'}</div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
-        <div className="modal-body">
+        <div className="modal-body" onKeyDown={ev => arrowNavigate(ev, ev.currentTarget)}>
           <div className="form-grid">
 
             <div className="form-section">Trip info</div>
             <div className="form-group">
+              <label>Trip start date</label>
+              <DateInput value={form.trip_start_date} onChange={v => { set('trip_start_date', v); calcActDays(v, form.trip_end_date); }} />
+            </div>
+            <div className="form-group">
+              <label>Trip end date</label>
+              <DateInput value={form.trip_end_date} onChange={v => { set('trip_end_date', v); calcActDays(form.trip_start_date, v); }} />
+            </div>
+            <div className="form-group">
               <label>Load date</label>
-              <DateInput value={form.load_date} onChange={v => { set('load_date', v); calcActDays(v, form.offload_date); }} style={e('load_date')} />
+              <DateInput value={form.load_date} onChange={v => set('load_date', v)} style={e('load_date')} />
             </div>
             <div className="form-group">
               <label>Off-load date</label>
-              <DateInput value={form.offload_date} onChange={v => { set('offload_date', v); calcActDays(form.load_date, v); }} style={e('offload_date')} />
+              <DateInput value={form.offload_date} onChange={v => set('offload_date', v)} style={e('offload_date')} />
             </div>
             <div className="form-group">
               <label>Vehicle (reg no.)</label>
               <select value={form.vehicle} style={e('vehicle')} onChange={ev => handleVehicleChange(ev.target.value)}>
                 <option value="">— select —</option>
-                {fleet.map(f => <option key={f.id} value={f.reg}>{f.reg}</option>)}
+                {drivers.map(d => <option key={d.id} value={d.vehicle_no}>{d.vehicle_no}</option>)}
               </select>
             </div>
-            <div className="form-group">
-              <label>Client</label>
-              {clientAdding ? (
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <input style={{ flex: 1 }} placeholder="Client name" value={newClientName} onChange={ev => setNewClientName(ev.target.value)} onKeyDown={ev => ev.key === 'Enter' && handleSaveNewClient()} autoFocus />
-                  <button className="btn btn-sm btn-primary" onClick={handleSaveNewClient}>Add</button>
-                  <button className="btn btn-sm btn-ghost" onClick={() => { setClientAdding(false); setNewClientName(''); }}>✕</button>
-                </div>
-              ) : (
-                <select value={form.client} style={e('client')} onChange={ev => { if (ev.target.value === '__add_new__') setClientAdding(true); else set('client', ev.target.value); }}>
-                  <option value="">— select —</option>
-                  {clients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  <option value="__add_new__">+ Add new client</option>
-                </select>
-              )}
-            </div>
-
             <div className="form-section">Route</div>
             <div className="form-group">
               <label>From (Province)</label>
@@ -437,19 +457,35 @@ export default function TripModal({ trip, onClose }: Props) {
             </div>
             <div className="form-group">
               <label>From (City)</label>
-              <select value={form.from_city} style={e('from_city')} onChange={ev => handleFromCity(ev.target.value)} disabled={!form.from_province}>
-                <option value="">— select city —</option>
-                {cities.filter(c => provinces.find(p => p.name === form.from_province)?.id === c.province_id)
-                  .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-              </select>
+              {fromCityAdding ? (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input style={{ flex: 1 }} placeholder="City name" value={fromNewCityName} onChange={ev => setFromNewCityName(ev.target.value)} onKeyDown={ev => ev.key === 'Enter' && handleSaveFromCity()} autoFocus />
+                  <button className="btn btn-sm btn-primary" onClick={handleSaveFromCity}>Add</button>
+                  <button className="btn btn-sm btn-ghost" onClick={() => { setFromCityAdding(false); setFromNewCityName(''); }}>✕</button>
+                </div>
+              ) : (
+                <select value={form.from_city} style={e('from_city')} onChange={ev => { if (ev.target.value === '__add_new__') setFromCityAdding(true); else handleFromCity(ev.target.value); }} disabled={!form.from_province}>
+                  <option value="">— select city —</option>
+                  {cities.filter(c => provinces.find(p => p.name === form.from_province)?.id === c.province_id).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  {form.from_province && <option value="__add_new__">+ Add new city</option>}
+                </select>
+              )}
             </div>
             <div className="form-group">
               <label>To (City)</label>
-              <select value={form.to_city} style={e('to_city')} onChange={ev => handleToCity(ev.target.value)} disabled={!form.to_province}>
-                <option value="">— select city —</option>
-                {cities.filter(c => provinces.find(p => p.name === form.to_province)?.id === c.province_id)
-                  .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-              </select>
+              {toCityAdding ? (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input style={{ flex: 1 }} placeholder="City name" value={toNewCityName} onChange={ev => setToNewCityName(ev.target.value)} onKeyDown={ev => ev.key === 'Enter' && handleSaveToCity()} autoFocus />
+                  <button className="btn btn-sm btn-primary" onClick={handleSaveToCity}>Add</button>
+                  <button className="btn btn-sm btn-ghost" onClick={() => { setToCityAdding(false); setToNewCityName(''); }}>✕</button>
+                </div>
+              ) : (
+                <select value={form.to_city} style={e('to_city')} onChange={ev => { if (ev.target.value === '__add_new__') setToCityAdding(true); else handleToCity(ev.target.value); }} disabled={!form.to_province}>
+                  <option value="">— select city —</option>
+                  {cities.filter(c => provinces.find(p => p.name === form.to_province)?.id === c.province_id).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  {form.to_province && <option value="__add_new__">+ Add new city</option>}
+                </select>
+              )}
             </div>
 
             <div className="form-group">
@@ -523,8 +559,8 @@ export default function TripModal({ trip, onClose }: Props) {
             </div>
 
             <div className="form-group"><label>Distance (km)</label><input type="number" style={e('km')} value={form.km || ''} onChange={ev => set('km', Number(ev.target.value))} /></div>
-            <div className="form-group"><label>Expected days</label><input type="number" value={form.exp_days || ''} onChange={ev => calcOverDays(Number(ev.target.value), form.act_days)} /></div>
             <div className="form-group"><label>Actual days</label><input type="number" readOnly value={form.act_days || ''} style={{ color: 'var(--accent)' }} /></div>
+            <div className="form-group"><label>Expected days</label><input type="number" value={form.exp_days || ''} onChange={ev => calcOverDays(Number(ev.target.value), form.act_days)} /></div>
             <div className="form-group"><label>Over days</label><input type="number" readOnly value={form.over_days || ''} style={{ color: 'var(--accent)' }} /></div>
 
             <div className="form-section">Trip expenses</div>
@@ -569,6 +605,9 @@ export default function TripModal({ trip, onClose }: Props) {
                             }}
                           >
                             <option value="">— select —</option>
+                            {row.label && !expenseCategories.find(c => c.name === row.label) && (
+                              <option value={row.label}>{row.label}</option>
+                            )}
                             {expenseCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                             <option value="__add_new__">+ Add new category</option>
                           </select>
@@ -603,9 +642,13 @@ export default function TripModal({ trip, onClose }: Props) {
             <div className="form-group full"><label>Delay notes</label><input value={form.delay_notes} onChange={e => set('delay_notes', e.target.value)} /></div>
 
             <div className="form-section">Diesel log</div>
-            <div className="form-group"><label>Opening diesel stock (ltr)</label><input type="number" value={form.diesel_open || ''} onChange={e => recalcDiesel(Number(e.target.value), form.diesel_close)} /></div>
-            <div className="form-group"><label>Closing diesel stock (ltr)</label><input type="number" value={form.diesel_close || ''} onChange={e => recalcDiesel(form.diesel_open, Number(e.target.value))} /></div>
-            <div className="form-group"><label>Expected consumption (ltr)</label><input type="number" value={form.diesel_exp || ''} onChange={e => set('diesel_exp', Number(e.target.value))} /></div>
+            <div className="form-group full">
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ flex: 1 }}><label>Opening stock (ltr)</label><input type="number" value={form.diesel_open || ''} onChange={e => recalcDiesel(Number(e.target.value), form.diesel_close)} /></div>
+                <div style={{ flex: 1 }}><label>Closing stock (ltr)</label><input type="number" value={form.diesel_close || ''} onChange={e => recalcDiesel(form.diesel_open, Number(e.target.value))} /></div>
+                <div style={{ flex: 1 }}><label>Expected consumption (ltr)</label><input type="number" value={form.diesel_exp || ''} onChange={e => set('diesel_exp', Number(e.target.value))} /></div>
+              </div>
+            </div>
             <div className="form-group full">
               <label>Diesel purchases</label>
               <table className="diesel-table">
@@ -619,10 +662,29 @@ export default function TripModal({ trip, onClose }: Props) {
                         <DateInput value={row.date} onChange={v => updateDieselRow(i, 'date', v)} />
                       </td>
                       <td>
-                        <select value={row.supplier} style={{ minWidth: 120 }} onChange={e => updateDieselRow(i, 'supplier', e.target.value)}>
-                          <option value="">— supplier —</option>
-                          {fuelSuppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
+                        {pendingSupplierRow === i ? (
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <input style={{ flex: 1, minWidth: 120 }} placeholder="New supplier name" value={newSupplierName} onChange={ev => setNewSupplierName(ev.target.value)} onKeyDown={ev => ev.key === 'Enter' && handleSaveNewSupplier()} autoFocus />
+                            <button className="btn btn-sm btn-primary" onClick={handleSaveNewSupplier}>Add</button>
+                            <button className="btn btn-sm btn-ghost" onClick={() => { setPendingSupplierRow(null); setNewSupplierName(''); }}>✕</button>
+                          </div>
+                        ) : (
+                          <select
+                            value={row.supplier}
+                            style={{ minWidth: 120 }}
+                            onChange={ev => {
+                              if (ev.target.value === '__add_new__') { setPendingSupplierRow(i); setNewSupplierName(''); }
+                              else { updateDieselRow(i, 'supplier', ev.target.value); }
+                            }}
+                          >
+                            <option value="">— select —</option>
+                            {row.supplier && !dieselSuppliers.find(s => s.name === row.supplier) && (
+                              <option value={row.supplier}>{row.supplier}</option>
+                            )}
+                            {dieselSuppliers.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                            <option value="__add_new__">+ Add new supplier</option>
+                          </select>
+                        )}
                       </td>
                       <td><input type="number" value={row.litres || ''} style={{ minWidth: 70 }} onChange={e => updateDieselRow(i, 'litres', Number(e.target.value))} /></td>
                       <td><input type="number" value={row.price || ''} style={{ minWidth: 80 }} onChange={e => updateDieselRow(i, 'price', Number(e.target.value))} /></td>
@@ -638,6 +700,23 @@ export default function TripModal({ trip, onClose }: Props) {
             <div className="form-group"><label>Total diesel consumed (ltr)</label><input readOnly value={form.diesel_consumed || ''} style={{ fontFamily: 'var(--mono)' }} /></div>
             <div className="form-group"><label>Diesel average (km/ltr)</label><input readOnly value={form.diesel_avg} style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }} /></div>
             <div className="form-group"><label>Total diesel cost (Rs)</label><input readOnly value={form.diesel_cost || ''} style={{ fontFamily: 'var(--mono)' }} /></div>
+            {(form.diesel_exp || 0) > 0 && (() => {
+              const diff = (form.diesel_consumed || 0) - (form.diesel_exp || 0);
+              const diffColor = diff > 0 ? 'var(--red)' : diff < 0 ? 'var(--green)' : 'var(--text)';
+              return (<>
+                <div className="form-group">
+                  <label>Diesel difference (ltr)</label>
+                  <input readOnly value={diff !== 0 ? (diff > 0 ? '+' : '') + diff.toFixed(1) : '0'} style={{ fontFamily: 'var(--mono)', color: diffColor }} title="Actual consumed minus expected" />
+                </div>
+                <div className="form-group">
+                  <label>Diesel difference — responsibility</label>
+                  <select value={form.diesel_diff_resp || 'company'} onChange={ev => set('diesel_diff_resp', ev.target.value)}>
+                    <option value="company">Absorb ourselves</option>
+                    <option value="driver">Bill to driver</option>
+                  </select>
+                </div>
+              </>);
+            })()}
 
             <div className="form-section">LPG</div>
             <div className="form-group"><label>Weight lifted (kg)</label><input type="number" value={form.lifted || ''} onChange={e => calcLpgDiff(Number(e.target.value), form.delivered)} /></div>
@@ -664,7 +743,6 @@ export default function TripModal({ trip, onClose }: Props) {
               </div>
             </div>
 
-            <div className="form-group full"><label>Notes</label><textarea value={form.notes} onChange={e => set('notes', e.target.value)} /></div>
           </div>
         </div>
         <div className="modal-footer">

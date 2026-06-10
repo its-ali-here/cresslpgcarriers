@@ -1,9 +1,10 @@
 import { supabase } from './supabase';
 import type {
-  Trip, Party, Transaction, Expense, PeshgiEntry,
-  FleetItem, Driver, ComplianceDoc, Settings, AppDB,
-  Province, City, Site, CityDistance, UserProfile, ExpenseCategory,
+  Trip, Expense,
+  FleetItem, Driver, Settings, AppDB,
+  Province, City, Site, CityDistance, UserProfile, ExpenseCategory, DieselSupplier, DieselPurchase,
 } from './types';
+import { uid } from './utils';
 
 // Convert empty strings to null for date columns so Postgres doesn't reject them.
 function nullDates(obj: Record<string, unknown>, fields: string[]): Record<string, unknown> {
@@ -40,12 +41,27 @@ export async function fetchTrips(): Promise<Trip[]> {
   return (data || []).map(mapTrip);
 }
 export async function upsertTrip(trip: Trip): Promise<void> {
-  const row = nullDates(unmapTrip(trip), ['load_date', 'offload_date']);
+  const row = nullDates(unmapTrip(trip), ['load_date', 'offload_date', 'trip_start_date', 'trip_end_date']);
   const { error } = await supabase.from('trips').upsert(row);
   if (error) throw error;
 }
 export async function deleteTrip(id: string): Promise<void> {
   const { error } = await supabase.from('trips').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// Mirrors a trip's diesel purchases into a normalized table (keyed by trip_id) for cross-trip analysis.
+export async function syncDieselPurchases(tripId: string, rows: DieselPurchase[]): Promise<void> {
+  const { error: delErr } = await supabase.from('diesel_purchases').delete().eq('trip_id', tripId);
+  if (delErr) throw delErr;
+  const payload = rows
+    .filter(r => r.supplier || r.litres || r.price || r.amount)
+    .map(r => ({
+      id: uid(), trip_id: tripId,
+      date: r.date || null, supplier: r.supplier, litres: r.litres, price: r.price, amount: r.amount,
+    }));
+  if (!payload.length) return;
+  const { error } = await supabase.from('diesel_purchases').insert(payload);
   if (error) throw error;
 }
 export async function batchUpdateTripNos(updates: { id: string; no: string }[]): Promise<void> {
@@ -71,46 +87,7 @@ export async function approveTrip(id: string): Promise<void> {
   if (error) throw error;
 }
 
-// ---- PARTIES ----
-export async function fetchParties(): Promise<Party[]> {
-  const { data, error } = await supabase.from('parties').select('*').order('name');
-  if (error) throw error;
-  return (data || []) as Party[];
-}
-export async function upsertParty(party: Party): Promise<void> {
-  const { error } = await supabase.from('parties').upsert(party);
-  if (error) throw error;
-}
-export async function deleteParty(id: string): Promise<void> {
-  const { error } = await supabase.from('parties').delete().eq('id', id);
-  if (error) throw error;
-}
 
-// ---- TRANSACTIONS ----
-function mapTxn(row: Record<string, unknown>): Transaction {
-  const { description, ...rest } = row;
-  return { ...rest, desc: description } as Transaction;
-}
-function unmapTxn(txn: Transaction): Record<string, unknown> {
-  const { desc, ...rest } = txn;
-  return { ...rest, description: desc };
-}
-
-export async function fetchTransactions(): Promise<Transaction[]> {
-  const { data, error } = await supabase
-    .from('transactions').select('*').order('date', { ascending: false });
-  if (error) throw error;
-  return (data || []).map(mapTxn);
-}
-export async function insertTransaction(txn: Transaction): Promise<void> {
-  const row = nullDates(unmapTxn(txn), ['date']);
-  const { error } = await supabase.from('transactions').insert(row);
-  if (error) throw error;
-}
-export async function deleteTransaction(id: string): Promise<void> {
-  const { error } = await supabase.from('transactions').delete().eq('id', id);
-  if (error) throw error;
-}
 
 // ---- EXPENSES ----
 export async function fetchExpenses(): Promise<Expense[]> {
@@ -128,69 +105,49 @@ export async function deleteExpense(id: string): Promise<void> {
   if (error) throw error;
 }
 
-// ---- PESHGI ----
-export async function fetchPeshgi(): Promise<PeshgiEntry[]> {
+
+// ---- BOWSERS ----
+export async function fetchFleet(): Promise<FleetItem[]> {
   return graceful(async () => {
-    const { data, error } = await supabase
-      .from('peshgi').select('*').order('date', { ascending: false });
+    const { data, error } = await supabase.from('bowsers').select('*').order('bowser_make');
     if (error) return [];
-    return (data || []) as PeshgiEntry[];
+    return (data || []) as FleetItem[];
   });
 }
-export async function upsertPeshgi(entry: PeshgiEntry): Promise<void> {
-  const { error } = await supabase.from('peshgi').upsert(nullDates(entry as unknown as Record<string, unknown>, ['date']));
-  if (error) throw error;
-}
-export async function deletePeshgi(id: string): Promise<void> {
-  const { error } = await supabase.from('peshgi').delete().eq('id', id);
-  if (error) throw error;
-}
-
-// ---- FLEET ----
-export async function fetchFleet(): Promise<FleetItem[]> {
-  const { data, error } = await supabase.from('fleet').select('*').order('reg');
-  if (error) throw error;
-  return (data || []) as FleetItem[];
-}
 export async function upsertFleet(item: FleetItem): Promise<void> {
-  const { error } = await supabase.from('fleet').upsert(nullDates(item as unknown as Record<string, unknown>, ['service']));
+  const { error } = await supabase.from('bowsers').upsert(item);
   if (error) throw error;
 }
 export async function deleteFleet(id: string): Promise<void> {
-  const { error } = await supabase.from('fleet').delete().eq('id', id);
+  const { error } = await supabase.from('bowsers').delete().eq('id', id);
+  if (error) throw error;
+}
+export async function approveFleet(id: string): Promise<void> {
+  const { error } = await supabase.from('bowsers').update({ approved: true }).eq('id', id);
   if (error) throw error;
 }
 
-// ---- DRIVERS ----
+// ---- VEHICLES ----
 export async function fetchDrivers(): Promise<Driver[]> {
-  const { data, error } = await supabase.from('drivers').select('*').order('name');
-  if (error) throw error;
-  return (data || []) as Driver[];
+  return graceful(async () => {
+    const { data, error } = await supabase.from('vehicles').select('*').order('vehicle_no');
+    if (error) return [];
+    return (data || []) as Driver[];
+  });
 }
 export async function upsertDriver(driver: Driver): Promise<void> {
-  const { error } = await supabase.from('drivers').upsert(nullDates(driver as unknown as Record<string, unknown>, ['lic_exp']));
+  const { error } = await supabase.from('vehicles').upsert(driver);
   if (error) throw error;
 }
 export async function deleteDriver(id: string): Promise<void> {
-  const { error } = await supabase.from('drivers').delete().eq('id', id);
+  const { error } = await supabase.from('vehicles').delete().eq('id', id);
+  if (error) throw error;
+}
+export async function approveDriver(id: string): Promise<void> {
+  const { error } = await supabase.from('vehicles').update({ approved: true }).eq('id', id);
   if (error) throw error;
 }
 
-// ---- COMPLIANCE ----
-export async function fetchCompliance(): Promise<ComplianceDoc[]> {
-  const { data, error } = await supabase
-    .from('compliance').select('*').order('expiry');
-  if (error) throw error;
-  return (data || []) as ComplianceDoc[];
-}
-export async function upsertCompliance(doc: ComplianceDoc): Promise<void> {
-  const { error } = await supabase.from('compliance').upsert(nullDates(doc as unknown as Record<string, unknown>, ['issue', 'expiry']));
-  if (error) throw error;
-}
-export async function deleteCompliance(id: string): Promise<void> {
-  const { error } = await supabase.from('compliance').delete().eq('id', id);
-  if (error) throw error;
-}
 
 // ---- SETTINGS ----
 const DEFAULT_SETTINGS: Settings = {
@@ -297,6 +254,23 @@ export async function deleteExpenseCategory(id: string): Promise<void> {
   if (error) throw error;
 }
 
+// ---- DIESEL SUPPLIERS ----
+export async function fetchDieselSuppliers(): Promise<DieselSupplier[]> {
+  return graceful(async () => {
+    const { data, error } = await supabase.from('diesel_suppliers').select('*').order('name');
+    if (error) return [];
+    return (data || []) as DieselSupplier[];
+  });
+}
+export async function upsertDieselSupplier(s: DieselSupplier): Promise<void> {
+  const { error } = await supabase.from('diesel_suppliers').upsert(s);
+  if (error) throw error;
+}
+export async function deleteDieselSupplier(id: string): Promise<void> {
+  const { error } = await supabase.from('diesel_suppliers').delete().eq('id', id);
+  if (error) throw error;
+}
+
 // ---- CITY DISTANCES ----
 export async function fetchCityDistances(): Promise<CityDistance[]> {
   return graceful(async () => {
@@ -317,18 +291,18 @@ export async function deleteCityDistance(id: string): Promise<void> {
 // ---- FETCH ALL ----
 export async function fetchAll(): Promise<AppDB> {
   const [
-    trips, parties, transactions, expenses, peshgi,
-    fleet, drivers, compliance, settings,
-    provinces, cities, sites, cityDistances, expenseCategories,
+    trips, expenses,
+    fleet, drivers, settings,
+    provinces, cities, sites, cityDistances, expenseCategories, dieselSuppliers,
   ] = await Promise.all([
-    fetchTrips(), fetchParties(), fetchTransactions(), fetchExpenses(),
-    fetchPeshgi(), fetchFleet(), fetchDrivers(), fetchCompliance(), fetchSettings(),
+    fetchTrips(), fetchExpenses(),
+    fetchFleet(), fetchDrivers(), fetchSettings(),
     fetchProvinces(), fetchCities(), fetchSites(), fetchCityDistances(),
-    fetchExpenseCategories(),
+    fetchExpenseCategories(), fetchDieselSuppliers(),
   ]);
   return {
-    trips, parties, transactions, expenses, peshgi,
-    fleet, drivers, compliance, settings,
-    provinces, cities, sites, cityDistances, expenseCategories,
+    trips, expenses,
+    fleet, drivers, settings,
+    provinces, cities, sites, cityDistances, expenseCategories, dieselSuppliers,
   };
 }

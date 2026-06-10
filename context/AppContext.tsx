@@ -2,12 +2,11 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import type {
-  AppDB, Trip, Party, Transaction, Expense, PeshgiEntry,
-  FleetItem, Driver, ComplianceDoc, Settings,
-  Province, City, Site, CityDistance, ExpenseCategory,
+  AppDB, Trip, Expense,
+  FleetItem, Driver, Settings,
+  Province, City, Site, CityDistance, ExpenseCategory, DieselSupplier,
 } from '@/lib/types';
 import * as db from '@/lib/db';
-import { uid } from '@/lib/utils';
 
 interface AppContextValue extends AppDB {
   loading: boolean;
@@ -17,27 +16,21 @@ interface AppContextValue extends AppDB {
   approveTrip: (id: string) => Promise<void>;
   approvePendingEdit: (id: string) => Promise<void>;
   rejectPendingEdit: (id: string) => Promise<void>;
-  // Parties
-  saveParty: (party: Party) => Promise<void>;
-  deleteParty: (id: string) => Promise<void>;
-  // Transactions
-  addTransaction: (txn: Omit<Transaction, 'id'> & { party: string }) => Promise<void>;
-  deleteTransaction: (id: string) => Promise<void>;
   // Expenses
   saveExpense: (expense: Expense) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
-  // Peshgi
-  savePeshgi: (entry: PeshgiEntry) => Promise<void>;
-  deletePeshgi: (id: string) => Promise<void>;
   // Fleet
   saveFleet: (item: FleetItem) => Promise<void>;
   deleteFleet: (id: string) => Promise<void>;
+  approveFleet: (id: string) => Promise<void>;
+  approvePendingFleetEdit: (id: string) => Promise<void>;
+  rejectPendingFleetEdit: (id: string) => Promise<void>;
   // Drivers
   saveDriver: (driver: Driver) => Promise<void>;
   deleteDriver: (id: string) => Promise<void>;
-  // Compliance
-  saveCompliance: (doc: ComplianceDoc) => Promise<void>;
-  deleteCompliance: (id: string) => Promise<void>;
+  approveDriver: (id: string) => Promise<void>;
+  approvePendingDriverEdit: (id: string) => Promise<void>;
+  rejectPendingDriverEdit: (id: string) => Promise<void>;
   // Settings
   updateSettings: (s: Settings) => Promise<void>;
   // Provinces
@@ -55,20 +48,25 @@ interface AppContextValue extends AppDB {
   // Expense categories
   saveExpenseCategory: (cat: ExpenseCategory) => Promise<void>;
   deleteExpenseCategory: (id: string) => Promise<void>;
-  // Helpers
-  getPartyBalance: (partyId: string) => number;
+  // Diesel suppliers
+  saveDieselSupplier: (s: DieselSupplier) => Promise<void>;
+  deleteDieselSupplier: (id: string) => Promise<void>;
+}
+
+function numberingDate(t: Trip): string {
+  return t.trip_start_date || t.load_date;
 }
 
 function assignNos(trips: Trip[]): Trip[] {
-  const withDate = [...trips].filter(t => t.load_date)
-    .sort((a, b) => a.load_date!.localeCompare(b.load_date!) || a.id.localeCompare(b.id));
+  const withDate = [...trips].filter(t => numberingDate(t))
+    .sort((a, b) => numberingDate(a).localeCompare(numberingDate(b)) || a.id.localeCompare(b.id));
   const yearSeq: Record<string, number> = {};
   const numbered = withDate.map(t => {
-    const year = t.load_date!.slice(0, 4);
+    const year = numberingDate(t).slice(0, 4);
     yearSeq[year] = (yearSeq[year] ?? 0) + 1;
     return { ...t, no: `${year}-${String(yearSeq[year]).padStart(3, '0')}` };
   });
-  return [...numbered, ...trips.filter(t => !t.load_date)];
+  return [...numbered, ...trips.filter(t => !numberingDate(t))];
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -76,10 +74,10 @@ const AppContext = createContext<AppContextValue | null>(null);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [state, setState] = useState<AppDB>({
-    trips: [], parties: [], transactions: [], expenses: [],
-    peshgi: [], fleet: [], drivers: [], compliance: [],
+    trips: [], expenses: [],
+    fleet: [], drivers: [],
     settings: { company: 'CRESS LPG CARRIERS', yard: '', driverDaily: 0, helperDaily: 0, tripDays: 0, dieselBench: 2.6 },
-    provinces: [], cities: [], sites: [], cityDistances: [], expenseCategories: [],
+    provinces: [], cities: [], sites: [], cityDistances: [], expenseCategories: [], dieselSuppliers: [],
   });
 
   useEffect(() => {
@@ -94,6 +92,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // TRIPS
   const saveTrip = useCallback(async (trip: Trip) => {
     await db.upsertTrip(trip);
+    await db.syncDieselPurchases(trip.id, trip.diesel_purchases || []);
     const current = state.trips;
     const next = current.some(t => t.id === trip.id)
       ? current.map(t => t.id === trip.id ? trip : t)
@@ -115,10 +114,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const approveTrip = useCallback(async (id: string) => {
     await db.approveTrip(id);
-    setState(prev => ({
-      ...prev,
-      trips: prev.trips.map(t => t.id === id ? { ...t, approved: true } : t),
-    }));
+    setState(prev => ({ ...prev, trips: prev.trips.map(t => t.id === id ? { ...t, approved: true } : t) }));
   }, []);
 
   const approvePendingEdit = useCallback(async (id: string) => {
@@ -128,6 +124,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const { __edited_by, __edited_at, ...editData } = trip.pending_edit as Record<string, unknown>;
     const merged: Trip = { ...trip, ...(editData as Partial<Trip>), pending_edit: null };
     await db.upsertTrip(merged);
+    await db.syncDieselPurchases(merged.id, merged.diesel_purchases || []);
     const next = state.trips.map(t => t.id === id ? merged : t);
     const renumbered = assignNos(next);
     const changed = renumbered.filter(r => state.trips.find(t => t.id === r.id)?.no !== r.no);
@@ -140,53 +137,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!trip) return;
     const updated: Trip = { ...trip, pending_edit: null };
     await db.upsertTrip(updated);
-    setState(prev => ({
-      ...prev,
-      trips: prev.trips.map(t => t.id === id ? updated : t),
-    }));
+    setState(prev => ({ ...prev, trips: prev.trips.map(t => t.id === id ? updated : t) }));
   }, [state.trips]);
-
-  // PARTIES
-  const saveParty = useCallback(async (party: Party) => {
-    await db.upsertParty(party);
-    setState(prev => {
-      const idx = prev.parties.findIndex(p => p.id === party.id);
-      const parties = idx >= 0
-        ? prev.parties.map(p => p.id === party.id ? party : p)
-        : [...prev.parties, party];
-      return { ...prev, parties };
-    });
-  }, []);
-
-  const deleteParty = useCallback(async (id: string) => {
-    await db.deleteParty(id);
-    setState(prev => ({
-      ...prev,
-      parties: prev.parties.filter(p => p.id !== id),
-      transactions: prev.transactions.filter(t => t.party !== id),
-    }));
-  }, []);
-
-  // TRANSACTIONS
-  const addTransaction = useCallback(async (txn: Omit<Transaction, 'id'> & { party: string }) => {
-    const full: Transaction = { id: uid(), ...txn } as Transaction;
-    await db.insertTransaction(full);
-    setState(prev => ({ ...prev, transactions: [...prev.transactions, full] }));
-  }, []);
-
-  const deleteTransaction = useCallback(async (id: string) => {
-    await db.deleteTransaction(id);
-    setState(prev => ({ ...prev, transactions: prev.transactions.filter(t => t.id !== id) }));
-  }, []);
 
   // EXPENSES
   const saveExpense = useCallback(async (expense: Expense) => {
     await db.upsertExpense(expense);
     setState(prev => {
       const idx = prev.expenses.findIndex(e => e.id === expense.id);
-      const expenses = idx >= 0
-        ? prev.expenses.map(e => e.id === expense.id ? expense : e)
-        : [...prev.expenses, expense];
+      const expenses = idx >= 0 ? prev.expenses.map(e => e.id === expense.id ? expense : e) : [...prev.expenses, expense];
       return { ...prev, expenses };
     });
   }, []);
@@ -196,31 +155,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setState(prev => ({ ...prev, expenses: prev.expenses.filter(e => e.id !== id) }));
   }, []);
 
-  // PESHGI
-  const savePeshgi = useCallback(async (entry: PeshgiEntry) => {
-    await db.upsertPeshgi(entry);
-    setState(prev => {
-      const idx = prev.peshgi.findIndex(p => p.id === entry.id);
-      const peshgi = idx >= 0
-        ? prev.peshgi.map(p => p.id === entry.id ? entry : p)
-        : [...prev.peshgi, entry];
-      return { ...prev, peshgi };
-    });
-  }, []);
-
-  const deletePeshgi = useCallback(async (id: string) => {
-    await db.deletePeshgi(id);
-    setState(prev => ({ ...prev, peshgi: prev.peshgi.filter(p => p.id !== id) }));
-  }, []);
-
   // FLEET
   const saveFleet = useCallback(async (item: FleetItem) => {
     await db.upsertFleet(item);
     setState(prev => {
       const idx = prev.fleet.findIndex(f => f.id === item.id);
-      const fleet = idx >= 0
-        ? prev.fleet.map(f => f.id === item.id ? item : f)
-        : [...prev.fleet, item];
+      const fleet = idx >= 0 ? prev.fleet.map(f => f.id === item.id ? item : f) : [...prev.fleet, item];
       return { ...prev, fleet };
     });
   }, []);
@@ -230,14 +170,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setState(prev => ({ ...prev, fleet: prev.fleet.filter(f => f.id !== id) }));
   }, []);
 
+  const approveFleet = useCallback(async (id: string) => {
+    await db.approveFleet(id);
+    setState(prev => ({ ...prev, fleet: prev.fleet.map(f => f.id === id ? { ...f, approved: true } : f) }));
+  }, []);
+
+  const approvePendingFleetEdit = useCallback(async (id: string) => {
+    const item = state.fleet.find(f => f.id === id);
+    if (!item?.pending_edit) return;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { __edited_by, __edited_at, ...editData } = item.pending_edit as Record<string, unknown>;
+    const merged: FleetItem = { ...item, ...(editData as Partial<FleetItem>), pending_edit: null };
+    await db.upsertFleet(merged);
+    setState(prev => ({ ...prev, fleet: prev.fleet.map(f => f.id === id ? merged : f) }));
+  }, [state.fleet]);
+
+  const rejectPendingFleetEdit = useCallback(async (id: string) => {
+    const item = state.fleet.find(f => f.id === id);
+    if (!item) return;
+    const updated: FleetItem = { ...item, pending_edit: null };
+    await db.upsertFleet(updated);
+    setState(prev => ({ ...prev, fleet: prev.fleet.map(f => f.id === id ? updated : f) }));
+  }, [state.fleet]);
+
   // DRIVERS
   const saveDriver = useCallback(async (driver: Driver) => {
     await db.upsertDriver(driver);
     setState(prev => {
       const idx = prev.drivers.findIndex(d => d.id === driver.id);
-      const drivers = idx >= 0
-        ? prev.drivers.map(d => d.id === driver.id ? driver : d)
-        : [...prev.drivers, driver];
+      const drivers = idx >= 0 ? prev.drivers.map(d => d.id === driver.id ? driver : d) : [...prev.drivers, driver];
       return { ...prev, drivers };
     });
   }, []);
@@ -247,22 +208,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setState(prev => ({ ...prev, drivers: prev.drivers.filter(d => d.id !== id) }));
   }, []);
 
-  // COMPLIANCE
-  const saveCompliance = useCallback(async (doc: ComplianceDoc) => {
-    await db.upsertCompliance(doc);
-    setState(prev => {
-      const idx = prev.compliance.findIndex(c => c.id === doc.id);
-      const compliance = idx >= 0
-        ? prev.compliance.map(c => c.id === doc.id ? doc : c)
-        : [...prev.compliance, doc];
-      return { ...prev, compliance };
-    });
+  const approveDriver = useCallback(async (id: string) => {
+    await db.approveDriver(id);
+    setState(prev => ({ ...prev, drivers: prev.drivers.map(d => d.id === id ? { ...d, approved: true } : d) }));
   }, []);
 
-  const deleteCompliance = useCallback(async (id: string) => {
-    await db.deleteCompliance(id);
-    setState(prev => ({ ...prev, compliance: prev.compliance.filter(c => c.id !== id) }));
-  }, []);
+  const approvePendingDriverEdit = useCallback(async (id: string) => {
+    const item = state.drivers.find(d => d.id === id);
+    if (!item?.pending_edit) return;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { __edited_by, __edited_at, ...editData } = item.pending_edit as Record<string, unknown>;
+    const merged: Driver = { ...item, ...(editData as Partial<Driver>), pending_edit: null };
+    await db.upsertDriver(merged);
+    setState(prev => ({ ...prev, drivers: prev.drivers.map(d => d.id === id ? merged : d) }));
+  }, [state.drivers]);
+
+  const rejectPendingDriverEdit = useCallback(async (id: string) => {
+    const item = state.drivers.find(d => d.id === id);
+    if (!item) return;
+    const updated: Driver = { ...item, pending_edit: null };
+    await db.upsertDriver(updated);
+    setState(prev => ({ ...prev, drivers: prev.drivers.map(d => d.id === id ? updated : d) }));
+  }, [state.drivers]);
 
   // SETTINGS
   const updateSettings = useCallback(async (s: Settings) => {
@@ -355,35 +322,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setState(prev => ({ ...prev, expenseCategories: prev.expenseCategories.filter(c => c.id !== id) }));
   }, []);
 
-  // HELPERS
-  const getPartyBalance = useCallback((partyId: string): number => {
-    const p = state.parties.find(x => x.id === partyId);
-    if (!p) return 0;
-    let bal = p.bal_type === 'dr' ? (p.opening || 0) : -(p.opening || 0);
-    state.transactions
-      .filter(t => t.party === partyId)
-      .forEach(t => { bal += t.type === 'dr' ? t.amount : -t.amount; });
-    return bal;
-  }, [state.parties, state.transactions]);
+  // DIESEL SUPPLIERS
+  const saveDieselSupplier = useCallback(async (s: DieselSupplier) => {
+    await db.upsertDieselSupplier(s);
+    setState(prev => {
+      const idx = prev.dieselSuppliers.findIndex(x => x.id === s.id);
+      const dieselSuppliers = idx >= 0 ? prev.dieselSuppliers.map(x => x.id === s.id ? s : x) : [...prev.dieselSuppliers, s];
+      return { ...prev, dieselSuppliers };
+    });
+  }, []);
+
+  const deleteDieselSupplier = useCallback(async (id: string) => {
+    await db.deleteDieselSupplier(id);
+    setState(prev => ({ ...prev, dieselSuppliers: prev.dieselSuppliers.filter(s => s.id !== id) }));
+  }, []);
 
   return (
     <AppContext.Provider value={{
       ...state, loading,
       saveTrip, deleteTrip, approveTrip, approvePendingEdit, rejectPendingEdit,
-      saveParty, deleteParty,
-      addTransaction, deleteTransaction,
       saveExpense, deleteExpense,
-      savePeshgi, deletePeshgi,
-      saveFleet, deleteFleet,
-      saveDriver, deleteDriver,
-      saveCompliance, deleteCompliance,
+      saveFleet, deleteFleet, approveFleet, approvePendingFleetEdit, rejectPendingFleetEdit,
+      saveDriver, deleteDriver, approveDriver, approvePendingDriverEdit, rejectPendingDriverEdit,
       updateSettings,
       saveProvince, deleteProvince,
       saveCity, deleteCity,
       saveSite, deleteSite,
       saveCityDistance, deleteCityDistance,
       saveExpenseCategory, deleteExpenseCategory,
-      getPartyBalance,
+      saveDieselSupplier, deleteDieselSupplier,
     }}>
       {children}
     </AppContext.Provider>

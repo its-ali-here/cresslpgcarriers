@@ -5,11 +5,8 @@ import Topbar from './Topbar';
 import Sidebar from './Sidebar';
 import Dashboard from './pages/Dashboard';
 import Trips from './pages/Trips';
-import ThirdParties from './pages/ThirdParties';
 import Expenses from './pages/Expenses';
 import Fleet from './pages/Fleet';
-import Drivers from './pages/Drivers';
-import Compliance from './pages/Compliance';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Destinations from './pages/Destinations';
@@ -40,12 +37,9 @@ export default function App() {
     switch (page) {
       case 'dashboard': return <Dashboard />;
       case 'trips': return <Trips />;
-      case 'third-parties': return <ThirdParties />;
       case 'expenses': return <Expenses />;
       case 'destinations': return <Destinations />;
       case 'fleet': return <Fleet />;
-      case 'drivers': return <Drivers />;
-      case 'compliance': return <Compliance />;
       case 'reports': return <Reports />;
       case 'settings': return <Settings />;
       default: return <Dashboard />;

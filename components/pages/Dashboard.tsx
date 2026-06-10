@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useApp } from '@/context/AppContext';
-import { rs, daysLeft } from '@/lib/utils';
+import { rs } from '@/lib/utils';
 
 const PakistanMap = dynamic(() => import('@/components/PakistanMap'), { ssr: false });
 
 export default function Dashboard() {
-  const { trips, parties, transactions, expenses, fleet, drivers, compliance, getPartyBalance } = useApp();
+  const { trips, expenses, fleet, drivers } = useApp();
   const [dateStr, setDateStr] = useState('');
 
   useEffect(() => {
@@ -20,22 +20,11 @@ export default function Dashboard() {
   const tripExp = trips.reduce((s, t) => s + t.total_exp, 0);
   const genExp = expenses.reduce((s, e) => s + e.amount, 0);
   const net = revenue - tripExp - genExp;
-  const totalReceivable = parties.filter(p => p.type === 'client').reduce((s, p) => s + Math.max(0, getPartyBalance(p.id)), 0);
-  const activeFleet = fleet.filter(f => f.status === 'Active').length;
+  const activeFleet = fleet.filter(f => f.status === 'Running in fleet').length;
   const activeDrivers = drivers.length;
 
   const recentTrips = [...trips].sort((a, b) => (b.load_date || '').localeCompare(a.load_date || '')).slice(0, 6);
 
-  const alerts: { text: string; days: number }[] = [];
-  compliance.forEach(c => {
-    const dl = daysLeft(c.expiry);
-    if (dl !== null && dl <= 60) alerts.push({ text: `${c.vehicle} — ${c.doc_type}`, days: dl });
-  });
-  drivers.forEach(d => {
-    const dl = daysLeft(d.lic_exp);
-    if (dl !== null && dl <= 60) alerts.push({ text: `${d.name} license`, days: dl });
-  });
-  alerts.sort((a, b) => a.days - b.days);
 
   return (
     <div className="page">
@@ -59,11 +48,6 @@ export default function Dashboard() {
         <div className="metric">
           <div className="metric-label">Net profit</div>
           <div className={`metric-value ${net >= 0 ? 'green' : 'red'}`}>{rs(net)}</div>
-        </div>
-        <div className="metric">
-          <div className="metric-label">Receivable</div>
-          <div className="metric-value gold">{rs(totalReceivable)}</div>
-          <div className="metric-sub">from clients</div>
         </div>
         <div className="metric">
           <div className="metric-label">Active fleet</div>

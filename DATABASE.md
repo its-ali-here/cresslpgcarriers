@@ -71,6 +71,7 @@ CREATE TABLE public.trips (
   diesel_diff_resp text DEFAULT 'company'::text,
   trip_start_date date,
   trip_end_date date,
+  trip_amount numeric DEFAULT 0,
   CONSTRAINT trips_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.expenses (
@@ -181,5 +182,5 @@ CREATE TABLE public.diesel_purchases (
   amount numeric DEFAULT 0,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT diesel_purchases_pkey PRIMARY KEY (id),
-  CONSTRAINT diesel_purchases_trip_id_fkey FOREIGN KEY (trip_id) REFERENCES public.trips(id) ON DELETE CASCADE
+  CONSTRAINT diesel_purchases_trip_id_fkey FOREIGN KEY (trip_id) REFERENCES public.trips(id)
 );

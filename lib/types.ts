@@ -91,6 +91,7 @@ export interface Trip {
   peshgi: number;
   status: string;
   toll: number;
+  trip_amount: number;
   daily_rate: number;
   driver_exp: number;
   helper_exp: number;

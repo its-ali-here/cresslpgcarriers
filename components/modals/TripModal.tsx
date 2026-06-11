@@ -61,7 +61,7 @@ function emptyForm(settings: { driverDaily: number; helperDaily: number; tripDay
     km: 0, exp_days: settings.tripDays || 0, act_days: 0, over_days: 0,
     lifted: 0, delivered: 0, lpg_diff: '', lpg_bill: 'absorbed', lpg_rate_kg: 0, lpg_gl_pkr: 0, lpg_rent_mt: 0, lpg_rent_total: 0,
     billed: 0, peshgi: 0, status: 'Completed',
-    toll: 0, daily_rate: settings.driverDaily + settings.helperDaily, driver_exp: 0, helper_exp: 0,
+    toll: 0, trip_amount: 0, daily_rate: 0, driver_exp: 0, helper_exp: 0,
     overday_cost: 0, chalan: 0, chalan_resp: '', tyre: 0, loadunload: 0,
     weigh: 0, excise: 0, motorway: 0, grease: 0, air: 0,
     engine_oil_litres: 0, engine_oil_price: 0, engine_oil_cost: 0,
@@ -91,8 +91,7 @@ export default function TripModal({ trip, onClose }: Props) {
 
   const [form, setForm] = useState<TripForm>(() => {
     if (editSource) {
-      const f = tripToForm(editSource as Trip);
-      return { ...f, daily_rate: f.daily_rate || (settings.driverDaily + settings.helperDaily) };
+      return tripToForm(editSource as Trip);
     }
     return emptyForm(settings);
   });
@@ -246,24 +245,12 @@ export default function TripModal({ trip, onClose }: Props) {
 
   function calcOverDays(expDays: number, actDays: number) {
     setForm(prev => {
-      const rate = prev.daily_rate || 0;
       const over = Math.max(0, actDays - expDays);
       return {
         ...prev,
         exp_days: expDays, act_days: actDays, over_days: over,
-        driver_exp: rate * actDays,
-        overday_cost: rate * over,
       };
     });
-  }
-
-  function setDailyRate(rate: number) {
-    setForm(prev => ({
-      ...prev,
-      daily_rate: rate,
-      driver_exp: rate * prev.act_days,
-      overday_cost: rate * prev.over_days,
-    }));
   }
 
   function calcLpgDiff(lifted: number, delivered: number) {
@@ -362,7 +349,7 @@ export default function TripModal({ trip, onClose }: Props) {
   }
 
   const otherExpTotal = otherExpRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
-  const expFields: (keyof TripForm)[] = ['toll', 'driver_exp', 'overday_cost', 'engine_oil_cost', 'diesel_cost'];
+  const expFields: (keyof TripForm)[] = ['trip_amount', 'engine_oil_cost', 'diesel_cost'];
   const totalExp = expFields.reduce((s, f) => s + (Number(form[f]) || 0), 0) + otherExpTotal;
   const lpgIncome = (form.lpg_rent_total || 0) + (form.lpg_gl_pkr || 0);
   const pl = lpgIncome - totalExp;
@@ -564,13 +551,7 @@ export default function TripModal({ trip, onClose }: Props) {
             <div className="form-group"><label>Over days</label><input type="number" readOnly value={form.over_days || ''} style={{ color: 'var(--accent)' }} /></div>
 
             <div className="form-section">Trip expenses</div>
-            <div className="form-group"><label>Tolls (Rs)</label><input type="number" value={form.toll || ''} onChange={ev => set('toll', Number(ev.target.value))} /></div>
-            <div className="form-group"><label>Daily allowance rate (Rs/day)</label><input type="number" value={form.daily_rate || ''} onChange={ev => setDailyRate(Number(ev.target.value))} /></div>
-            <div className="form-group">
-              <label>Driver + Helper total allowance (Rs)</label>
-              <input readOnly value={form.driver_exp || ''} style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }} title={`Rs ${form.daily_rate}/day × ${form.act_days} days`} />
-            </div>
-            <div className="form-group"><label>Over-days extra cost (Rs)</label><input readOnly value={form.overday_cost || ''} style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }} title={`Rs ${form.daily_rate}/day × ${form.over_days} over days`} /></div>
+            <div className="form-group"><label>Trip amount (Rs)</label><input type="number" value={form.trip_amount || ''} onChange={ev => set('trip_amount', Number(ev.target.value))} /></div>
             <div className="form-group">
               <label>Engine oil</label>
               <div style={{ display: 'flex', gap: 6 }}>

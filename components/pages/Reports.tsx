@@ -18,13 +18,12 @@ function fmtNum(n: number) {
   return n ? n.toLocaleString('en-PK') : '0';
 }
 
-function exportPDF(
+function viewPDF(
   company: string,
   title: string,
   dateRange: string,
   head: string[][],
   body: (string | number)[][],
-  filename: string,
 ) {
   const doc = new jsPDF({ orientation: 'landscape' });
   doc.setFontSize(13);
@@ -39,7 +38,7 @@ function exportPDF(
     styles: { fontSize: 7.5 },
     headStyles: { fillColor: [30, 41, 59] },
   });
-  doc.save(filename);
+  window.open(doc.output('bloburl'), '_blank');
 }
 
 export default function Reports() {
@@ -120,13 +119,13 @@ function PLReport({ trips, expenses, company, dateRange, dateFrom }: {
       rs(t.net_pl),
       t.lifted > 0 ? 'Rs ' + (t.total_exp / t.lifted * 1000).toFixed(0) + '/ton' : '—',
     ]);
-    exportPDF(company, 'P&L Summary', dateRange, head, body, `pl-summary-${today()}.pdf`);
+    viewPDF(company, 'P&L Summary', dateRange, head, body);
   }
 
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-        <button className="btn btn-ghost btn-sm" onClick={handlePDF}>↓ PDF</button>
+        <button className="btn btn-ghost btn-sm" onClick={handlePDF}>View PDF</button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: '1.5rem' }}>
         <div className="metric"><div className="metric-label">Total rent</div><div className="metric-value green">{rs(revenue)}</div><div className="metric-sub">from {trips.length} trips</div></div>
@@ -181,13 +180,13 @@ function TripwiseReport({ trips, company, dateRange }: { trips: Trip[]; company:
       rs(t.total_exp),
       rs(t.net_pl),
     ]);
-    exportPDF(company, 'Trip Report', dateRange, head, body, `trip-report-${today()}.pdf`);
+    viewPDF(company, 'Trip Report', dateRange, head, body);
   }
 
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-        <button className="btn btn-ghost btn-sm" onClick={handlePDF}>↓ PDF</button>
+        <button className="btn btn-ghost btn-sm" onClick={handlePDF}>View PDF</button>
       </div>
       <div className="table-wrap">
         <table>
@@ -265,13 +264,13 @@ function BowserwiseReport({ trips, company, dateRange }: { trips: Trip[]; compan
       rs(r.rent), rs(r.exp), rs(r.pl),
       r.avgKmLtr ? r.avgKmLtr.toFixed(2) : '—',
     ]);
-    exportPDF(company, 'Bowserwise Report', dateRange, head, body, `bowserwise-${today()}.pdf`);
+    viewPDF(company, 'Bowserwise Report', dateRange, head, body);
   }
 
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-        <button className="btn btn-ghost btn-sm" onClick={handlePDF}>↓ PDF</button>
+        <button className="btn btn-ghost btn-sm" onClick={handlePDF}>View PDF</button>
       </div>
       <div className="table-wrap">
         <table>
@@ -331,13 +330,13 @@ function MonthwiseReport({ trips, company, dateRange }: { trips: Trip[]; company
   function handlePDF() {
     const head = [['Month', '# Trips', 'LPG Lifted (kg)', 'Total Rent', 'Total Exp', 'Net P/L']];
     const body = rows.map(r => [r.label, r.count, fmtNum(r.lifted), rs(r.rent), rs(r.exp), rs(r.pl)]);
-    exportPDF(company, 'Monthwise Report', dateRange, head, body, `monthwise-${today()}.pdf`);
+    viewPDF(company, 'Monthwise Report', dateRange, head, body);
   }
 
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-        <button className="btn btn-ghost btn-sm" onClick={handlePDF}>↓ PDF</button>
+        <button className="btn btn-ghost btn-sm" onClick={handlePDF}>View PDF</button>
       </div>
       <div className="table-wrap">
         <table>
@@ -391,13 +390,13 @@ function DieselReport({ trips, dieselBench, company, dateRange }: {
         rs(t.diesel_cost),
       ];
     });
-    exportPDF(company, 'Diesel Analysis', dateRange, head, body, `diesel-${today()}.pdf`);
+    viewPDF(company, 'Diesel Analysis', dateRange, head, body);
   }
 
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-        <button className="btn btn-ghost btn-sm" onClick={handlePDF}>↓ PDF</button>
+        <button className="btn btn-ghost btn-sm" onClick={handlePDF}>View PDF</button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: '1.5rem' }}>
         <div className="metric"><div className="metric-label">Total diesel consumed</div><div className="metric-value">{filtered.reduce((s, t) => s + t.diesel_consumed, 0).toLocaleString()} ltr</div></div>

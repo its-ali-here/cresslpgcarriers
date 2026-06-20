@@ -24,15 +24,18 @@ export default function Trips() {
   const { role } = useUser();
   const [editing, setEditing] = useState<Trip | null | 'new'>(null);
   const [page, setPage] = useState(1);
+  const [vehicleFilter, setVehicleFilter] = useState('');
 
   const isAdmin    = role === 'admin';
   const isOperator = role === 'operator';
   const canAddTrip = isAdmin || isOperator;
 
   const sorted = [...trips].sort((a, b) => (b.no || '').localeCompare(a.no || ''));
-  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const vehicles = Array.from(new Set(trips.map(t => t.vehicle).filter(Boolean))).sort();
+  const filtered = vehicleFilter ? sorted.filter(t => t.vehicle === vehicleFilter) : sorted;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-  const pageTrips = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const pageTrips = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   async function handleDelete(id: string) {
     if (!confirm('Delete this trip? This cannot be undone.')) return;
@@ -51,6 +54,15 @@ export default function Trips() {
           <div className="page-sub">yard → loading → unloading → yard</div>
         </div>
         <div className="header-actions">
+          <select
+            className="btn btn-ghost"
+            value={vehicleFilter}
+            onChange={e => { setVehicleFilter(e.target.value); setPage(1); }}
+            style={{ minWidth: 140 }}
+          >
+            <option value="">All vehicles</option>
+            {vehicles.map(v => <option key={v} value={v}>{v}</option>)}
+          </select>
           {canAddTrip && <button className="btn btn-primary" onClick={() => setEditing('new')}>+ New trip</button>}
         </div>
       </div>
@@ -65,8 +77,8 @@ export default function Trips() {
             </tr>
           </thead>
           <tbody>
-            {sorted.length === 0 ? (
-              <tr><td colSpan={11}><div className="empty"><div className="empty-icon">🚛</div>No trips logged yet. Click &quot;New trip&quot; to start.</div></td></tr>
+            {filtered.length === 0 ? (
+              <tr><td colSpan={11}><div className="empty"><div className="empty-icon">🚛</div>{vehicleFilter ? `No trips for vehicle ${vehicleFilter}.` : 'No trips logged yet. Click "New trip" to start.'}</div></td></tr>
             ) : pageTrips.map(t => (
               <tr key={t.id} style={t.approved === false || t.pending_edit ? { background: 'rgba(255,200,0,0.10)' } : undefined}>
                 <td className="mono">

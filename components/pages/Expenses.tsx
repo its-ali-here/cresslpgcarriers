@@ -87,7 +87,7 @@ export default function Expenses() {
               <tr key={e.id}>
                 <td>{e.date}</td>
                 <td><span className="badge badge-gray">{e.cat}</span></td>
-                <td>{e.desc || '—'}</td>
+                <td>{e.description || '—'}</td>
                 <td className="mono" style={{ color: 'var(--red)' }}>{rs(e.amount)}</td>
                 <td className="mono">{e.ref || '—'}</td>
                 <td>

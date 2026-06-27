@@ -102,7 +102,6 @@ export default function Trips() {
                 <td className="mono">{t.lifted ? t.lifted.toLocaleString() : ''}</td>
                 <td className="mono">
                   {t.act_days || '—'}
-                  {t.over_days > 0 && <span className="badge badge-yellow" style={{ marginLeft: 4 }}>+{t.over_days}d</span>}
                 </td>
                 <td className="mono">{t.lpg_rent_mt ? rs(t.lpg_rent_mt) : ''}</td>
                 <td className="mono">{costMt(t)}</td>

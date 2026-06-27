@@ -54,7 +54,7 @@ interface AppContextValue extends AppDB {
 }
 
 function numberingDate(t: Trip): string {
-  return t.trip_start_date || t.load_date;
+  return t.load_date;
 }
 
 function assignNos(trips: Trip[]): Trip[] {
@@ -93,24 +93,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const saveTrip = useCallback(async (trip: Trip) => {
     await db.upsertTrip(trip);
     await db.syncDieselPurchases(trip.id, trip.diesel_purchases || []);
-    const current = state.trips;
-    const next = current.some(t => t.id === trip.id)
-      ? current.map(t => t.id === trip.id ? trip : t)
-      : [...current, trip];
-    const renumbered = assignNos(next);
-    const changed = renumbered.filter(r => current.find(t => t.id === r.id)?.no !== r.no);
-    await db.batchUpdateTripNos(changed.map(t => ({ id: t.id, no: t.no })));
-    setState(prev => ({ ...prev, trips: renumbered }));
-  }, [state.trips]);
+    let pendingUpdates: { id: string; no: string }[] = [];
+    setState(prev => {
+      const current = prev.trips;
+      const next = current.some(t => t.id === trip.id)
+        ? current.map(t => t.id === trip.id ? trip : t)
+        : [...current, trip];
+      const renumbered = assignNos(next);
+      pendingUpdates = renumbered
+        .filter(r => current.find(t => t.id === r.id)?.no !== r.no)
+        .map(t => ({ id: t.id, no: t.no }));
+      return { ...prev, trips: renumbered };
+    });
+    if (pendingUpdates.length) await db.batchUpdateTripNos(pendingUpdates);
+  }, []);
 
   const deleteTrip = useCallback(async (id: string) => {
     await db.deleteTrip(id);
-    const next = state.trips.filter(t => t.id !== id);
-    const renumbered = assignNos(next);
-    const changed = renumbered.filter(r => state.trips.find(t => t.id === r.id)?.no !== r.no);
-    await db.batchUpdateTripNos(changed.map(t => ({ id: t.id, no: t.no })));
-    setState(prev => ({ ...prev, trips: renumbered }));
-  }, [state.trips]);
+    let pendingUpdates: { id: string; no: string }[] = [];
+    setState(prev => {
+      const current = prev.trips;
+      const next = current.filter(t => t.id !== id);
+      const renumbered = assignNos(next);
+      pendingUpdates = renumbered
+        .filter(r => current.find(t => t.id === r.id)?.no !== r.no)
+        .map(t => ({ id: t.id, no: t.no }));
+      return { ...prev, trips: renumbered };
+    });
+    if (pendingUpdates.length) await db.batchUpdateTripNos(pendingUpdates);
+  }, []);
 
   const approveTrip = useCallback(async (id: string) => {
     await db.approveTrip(id);
@@ -118,27 +129,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const approvePendingEdit = useCallback(async (id: string) => {
-    const trip = state.trips.find(t => t.id === id);
-    if (!trip?.pending_edit) return;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { __edited_by, __edited_at, ...editData } = trip.pending_edit as Record<string, unknown>;
-    const merged: Trip = { ...trip, ...(editData as Partial<Trip>), pending_edit: null };
+    let merged: Trip | null = null;
+    setState(prev => {
+      const trip = prev.trips.find(t => t.id === id);
+      if (!trip?.pending_edit) return prev;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { __edited_by, __edited_at, ...editData } = trip.pending_edit as Record<string, unknown>;
+      merged = { ...trip, ...(editData as Partial<Trip>), pending_edit: null };
+      return prev;
+    });
+    if (!merged) return;
     await db.upsertTrip(merged);
-    await db.syncDieselPurchases(merged.id, merged.diesel_purchases || []);
-    const next = state.trips.map(t => t.id === id ? merged : t);
-    const renumbered = assignNos(next);
-    const changed = renumbered.filter(r => state.trips.find(t => t.id === r.id)?.no !== r.no);
-    if (changed.length) await db.batchUpdateTripNos(changed.map(t => ({ id: t.id, no: t.no })));
-    setState(prev => ({ ...prev, trips: renumbered }));
-  }, [state.trips]);
+    await db.syncDieselPurchases((merged as Trip).id, (merged as Trip).diesel_purchases || []);
+    let pendingUpdates: { id: string; no: string }[] = [];
+    setState(prev => {
+      const next = prev.trips.map(t => t.id === id ? merged! : t);
+      const renumbered = assignNos(next);
+      pendingUpdates = renumbered
+        .filter(r => prev.trips.find(t => t.id === r.id)?.no !== r.no)
+        .map(t => ({ id: t.id, no: t.no }));
+      return { ...prev, trips: renumbered };
+    });
+    if (pendingUpdates.length) await db.batchUpdateTripNos(pendingUpdates);
+  }, []);
 
   const rejectPendingEdit = useCallback(async (id: string) => {
-    const trip = state.trips.find(t => t.id === id);
-    if (!trip) return;
-    const updated: Trip = { ...trip, pending_edit: null };
+    let updated: Trip | null = null;
+    setState(prev => {
+      const trip = prev.trips.find(t => t.id === id);
+      if (!trip) return prev;
+      updated = { ...trip, pending_edit: null };
+      return prev;
+    });
+    if (!updated) return;
     await db.upsertTrip(updated);
-    setState(prev => ({ ...prev, trips: prev.trips.map(t => t.id === id ? updated : t) }));
-  }, [state.trips]);
+    setState(prev => ({ ...prev, trips: prev.trips.map(t => t.id === id ? updated! : t) }));
+  }, []);
 
   // EXPENSES
   const saveExpense = useCallback(async (expense: Expense) => {
@@ -176,22 +202,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const approvePendingFleetEdit = useCallback(async (id: string) => {
-    const item = state.fleet.find(f => f.id === id);
-    if (!item?.pending_edit) return;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { __edited_by, __edited_at, ...editData } = item.pending_edit as Record<string, unknown>;
-    const merged: FleetItem = { ...item, ...(editData as Partial<FleetItem>), pending_edit: null };
+    let merged: FleetItem | null = null;
+    setState(prev => {
+      const item = prev.fleet.find(f => f.id === id);
+      if (!item?.pending_edit) return prev;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { __edited_by, __edited_at, ...editData } = item.pending_edit as Record<string, unknown>;
+      merged = { ...item, ...(editData as Partial<FleetItem>), pending_edit: null };
+      return prev;
+    });
+    if (!merged) return;
     await db.upsertFleet(merged);
-    setState(prev => ({ ...prev, fleet: prev.fleet.map(f => f.id === id ? merged : f) }));
-  }, [state.fleet]);
+    setState(prev => ({ ...prev, fleet: prev.fleet.map(f => f.id === id ? merged! : f) }));
+  }, []);
 
   const rejectPendingFleetEdit = useCallback(async (id: string) => {
-    const item = state.fleet.find(f => f.id === id);
-    if (!item) return;
-    const updated: FleetItem = { ...item, pending_edit: null };
+    let updated: FleetItem | null = null;
+    setState(prev => {
+      const item = prev.fleet.find(f => f.id === id);
+      if (!item) return prev;
+      updated = { ...item, pending_edit: null };
+      return prev;
+    });
+    if (!updated) return;
     await db.upsertFleet(updated);
-    setState(prev => ({ ...prev, fleet: prev.fleet.map(f => f.id === id ? updated : f) }));
-  }, [state.fleet]);
+    setState(prev => ({ ...prev, fleet: prev.fleet.map(f => f.id === id ? updated! : f) }));
+  }, []);
 
   // DRIVERS
   const saveDriver = useCallback(async (driver: Driver) => {
@@ -214,22 +250,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const approvePendingDriverEdit = useCallback(async (id: string) => {
-    const item = state.drivers.find(d => d.id === id);
-    if (!item?.pending_edit) return;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { __edited_by, __edited_at, ...editData } = item.pending_edit as Record<string, unknown>;
-    const merged: Driver = { ...item, ...(editData as Partial<Driver>), pending_edit: null };
+    let merged: Driver | null = null;
+    setState(prev => {
+      const item = prev.drivers.find(d => d.id === id);
+      if (!item?.pending_edit) return prev;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { __edited_by, __edited_at, ...editData } = item.pending_edit as Record<string, unknown>;
+      merged = { ...item, ...(editData as Partial<Driver>), pending_edit: null };
+      return prev;
+    });
+    if (!merged) return;
     await db.upsertDriver(merged);
-    setState(prev => ({ ...prev, drivers: prev.drivers.map(d => d.id === id ? merged : d) }));
-  }, [state.drivers]);
+    setState(prev => ({ ...prev, drivers: prev.drivers.map(d => d.id === id ? merged! : d) }));
+  }, []);
 
   const rejectPendingDriverEdit = useCallback(async (id: string) => {
-    const item = state.drivers.find(d => d.id === id);
-    if (!item) return;
-    const updated: Driver = { ...item, pending_edit: null };
+    let updated: Driver | null = null;
+    setState(prev => {
+      const item = prev.drivers.find(d => d.id === id);
+      if (!item) return prev;
+      updated = { ...item, pending_edit: null };
+      return prev;
+    });
+    if (!updated) return;
     await db.upsertDriver(updated);
-    setState(prev => ({ ...prev, drivers: prev.drivers.map(d => d.id === id ? updated : d) }));
-  }, [state.drivers]);
+    setState(prev => ({ ...prev, drivers: prev.drivers.map(d => d.id === id ? updated! : d) }));
+  }, []);
 
   // SETTINGS
   const updateSettings = useCallback(async (s: Settings) => {

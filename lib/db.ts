@@ -16,7 +16,7 @@ function nullDates(obj: Record<string, unknown>, fields: string[]): Record<strin
 }
 
 async function graceful<T>(fn: () => Promise<T[]>): Promise<T[]> {
-  try { return await fn(); } catch { return []; }
+  try { return await fn(); } catch (err) { console.error('DB fetch failed:', err); return []; }
 }
 
 // ---- TRIPS ----

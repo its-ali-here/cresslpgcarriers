@@ -54,11 +54,11 @@ function DateInput({ value, onChange, placeholder, style }: { value: string; onC
   );
 }
 
-function emptyForm(settings: { driverDaily: number; helperDaily: number; tripDays: number }): TripForm {
+function emptyForm(): TripForm {
   return {
     no: '', month: '', load_date: today(), offload_date: '', trip_start_date: '', trip_end_date: '', vehicle: '', driver: '', helper: '', client: '',
     from_province: '', from_city: '', from: '', to_province: '', to_city: '', to: '',
-    km: 0, exp_days: settings.tripDays || 0, act_days: 0, over_days: 0,
+    km: 0, act_days: 0,
     lifted: 0, delivered: 0, lpg_diff: '', lpg_bill: 'absorbed', lpg_rate_kg: 0, lpg_gl_pkr: 0, lpg_rent_mt: 0, lpg_rent_total: 0,
     billed: 0, peshgi: 0, status: 'Completed',
     toll: 0, trip_amount: 0, daily_rate: 0, driver_exp: 0, helper_exp: 0,
@@ -81,7 +81,7 @@ function tripToForm(t: Trip): TripForm {
 }
 
 export default function TripModal({ trip, onClose }: Props) {
-  const { drivers, settings, provinces, cities, sites, cityDistances, expenseCategories, dieselSuppliers, saveTrip, saveSite, saveCity, saveExpenseCategory, saveDieselSupplier } = useApp();
+  const { drivers, provinces, cities, sites, cityDistances, expenseCategories, dieselSuppliers, saveTrip, saveSite, saveCity, saveExpenseCategory, saveDieselSupplier } = useApp();
   const { userId, role, name: userName } = useUser();
 
   // Operators editing an approved trip see their pending changes (if any); admins always see main data
@@ -93,7 +93,7 @@ export default function TripModal({ trip, onClose }: Props) {
     if (editSource) {
       return tripToForm(editSource as Trip);
     }
-    return emptyForm(settings);
+    return emptyForm();
   });
   const [dieselRows, setDieselRows] = useState<DieselPurchase[]>(() => {
     if (!trip) return [];
@@ -240,17 +240,7 @@ export default function TripModal({ trip, onClose }: Props) {
     const diff = Math.max(0, Math.round(
       (new Date(endDate + 'T00:00:00').getTime() - new Date(startDate + 'T00:00:00').getTime()) / 86400000
     )) + 1;
-    calcOverDays(form.exp_days, diff);
-  }
-
-  function calcOverDays(expDays: number, actDays: number) {
-    setForm(prev => {
-      const over = Math.max(0, actDays - expDays);
-      return {
-        ...prev,
-        exp_days: expDays, act_days: actDays, over_days: over,
-      };
-    });
+    setForm(prev => ({ ...prev, act_days: diff }));
   }
 
   function calcLpgDiff(lifted: number, delivered: number) {
@@ -547,8 +537,6 @@ export default function TripModal({ trip, onClose }: Props) {
 
             <div className="form-group"><label>Distance (km)</label><input type="number" style={e('km')} value={form.km || ''} onChange={ev => set('km', Number(ev.target.value))} /></div>
             <div className="form-group"><label>Actual days</label><input type="number" readOnly value={form.act_days || ''} style={{ color: 'var(--accent)' }} /></div>
-            <div className="form-group"><label>Expected days</label><input type="number" value={form.exp_days || ''} onChange={ev => calcOverDays(Number(ev.target.value), form.act_days)} /></div>
-            <div className="form-group"><label>Over days</label><input type="number" readOnly value={form.over_days || ''} style={{ color: 'var(--accent)' }} /></div>
 
             <div className="form-section">Trip expenses</div>
             <div className="form-group"><label>Trip amount (Rs)</label><input type="number" value={form.trip_amount || ''} onChange={ev => set('trip_amount', Number(ev.target.value))} /></div>

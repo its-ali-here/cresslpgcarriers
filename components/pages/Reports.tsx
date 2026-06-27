@@ -83,7 +83,7 @@ export default function Reports() {
         ))}
       </div>
 
-      {tab === 'pl'         && <PLReport trips={filteredTrips} expenses={expenses} company={company} dateRange={dateRange} dateFrom={dateFrom} />}
+      {tab === 'pl'         && <PLReport trips={filteredTrips} expenses={expenses} company={company} dateRange={dateRange} dateFrom={dateFrom} dateTo={dateTo} />}
       {tab === 'tripwise'   && <TripwiseReport trips={filteredTrips} company={company} dateRange={dateRange} />}
       {tab === 'bowserwise' && <BowserwiseReport trips={filteredTrips} company={company} dateRange={dateRange} />}
       {tab === 'monthwise'  && <MonthwiseReport trips={filteredTrips} company={company} dateRange={dateRange} />}
@@ -94,14 +94,15 @@ export default function Reports() {
 
 // ─── P&L Summary ─────────────────────────────────────────────────────────────
 
-function PLReport({ trips, expenses, company, dateRange, dateFrom }: {
+function PLReport({ trips, expenses, company, dateRange, dateFrom, dateTo }: {
   trips: Trip[];
   expenses: ReturnType<typeof useApp>['expenses'];
   company: string;
   dateRange: string;
   dateFrom: string;
+  dateTo: string;
 }) {
-  const filteredExp = expenses.filter(e => !e.date || e.date >= dateFrom);
+  const filteredExp = expenses.filter(e => !e.date || (e.date >= dateFrom && e.date <= dateTo));
   const revenue   = trips.reduce((s, t) => s + (t.lpg_rent_total || 0), 0);
   const tripExp   = trips.reduce((s, t) => s + (t.total_exp || 0), 0);
   const genExp    = filteredExp.reduce((s, e) => s + e.amount, 0);
@@ -164,7 +165,7 @@ function PLReport({ trips, expenses, company, dateRange, dateFrom }: {
 
 function TripwiseReport({ trips, company, dateRange }: { trips: Trip[]; company: string; dateRange: string }) {
   function handlePDF() {
-    const head = [['Trip #', 'Load Date', 'Vehicle', 'Route', 'LPG Lifted', 'LPG Delivered', 'Gain/Loss', 'Rent/MT', 'Rent Total', 'Act. Days', 'Over Days', 'Total Exp', 'Net P/L']];
+    const head = [['Trip #', 'Load Date', 'Vehicle', 'Route', 'LPG Lifted', 'LPG Delivered', 'Gain/Loss', 'Rent/MT', 'Rent Total', 'Act. Days', 'Total Exp', 'Net P/L']];
     const body = trips.map(t => [
       t.no || '—',
       fmtDate(t.load_date),
@@ -176,7 +177,6 @@ function TripwiseReport({ trips, company, dateRange }: { trips: Trip[]; company:
       rs(t.lpg_rent_mt),
       rs(t.lpg_rent_total),
       t.act_days || '—',
-      t.over_days || '0',
       rs(t.total_exp),
       rs(t.net_pl),
     ]);
@@ -194,13 +194,13 @@ function TripwiseReport({ trips, company, dateRange }: { trips: Trip[]; company:
             <tr>
               <th>Trip #</th><th>Load Date</th><th>Vehicle</th><th>Route</th>
               <th>LPG Lifted</th><th>LPG Delivered</th><th>Gain/Loss</th>
-              <th>Rent/MT</th><th>Rent Total</th><th>Act. Days</th><th>Over Days</th>
+              <th>Rent/MT</th><th>Rent Total</th><th>Act. Days</th>
               <th>Total Exp</th><th>Net P/L</th>
             </tr>
           </thead>
           <tbody>
             {trips.length === 0 ? (
-              <tr><td colSpan={13}><div className="empty">No trips in this period.</div></td></tr>
+              <tr><td colSpan={12}><div className="empty">No trips in this period.</div></td></tr>
             ) : trips.map(t => {
               const diff = parseFloat(t.lpg_diff);
               return (
@@ -215,7 +215,6 @@ function TripwiseReport({ trips, company, dateRange }: { trips: Trip[]; company:
                   <td className="mono">{t.lpg_rent_mt ? rs(t.lpg_rent_mt) : ''}</td>
                   <td className="mono">{t.lpg_rent_total ? rs(t.lpg_rent_total) : ''}</td>
                   <td className="mono">{t.act_days || '—'}</td>
-                  <td className="mono" style={{ color: t.over_days > 0 ? 'var(--accent)' : undefined }}>{t.over_days || '0'}</td>
                   <td className="mono">{rs(t.total_exp)}</td>
                   <td className="mono" style={{ color: t.net_pl >= 0 ? 'var(--green)' : 'var(--red)' }}>{rs(t.net_pl)}</td>
                 </tr>

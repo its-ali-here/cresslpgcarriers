@@ -76,9 +76,7 @@ export interface Trip {
   to_city: string;
   to: string;
   km: number;
-  exp_days: number;
   act_days: number;
-  over_days: number;
   lifted: number;
   delivered: number;
   lpg_diff: string;
@@ -135,7 +133,7 @@ export interface Expense {
   id: string;
   date: string;
   cat: string;
-  desc: string;
+  description: string;
   amount: number;
   ref: string;
 }

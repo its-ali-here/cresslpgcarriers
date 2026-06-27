@@ -15,7 +15,7 @@ const categories = ['Salary', 'Office rent', 'Utilities', 'Insurance premium', '
 export default function ExpenseModal({ expense, onClose }: Props) {
   const { saveExpense } = useApp();
   const [form, setForm] = useState<Expense>(expense ?? {
-    id: uid(), date: today(), cat: 'Salary', desc: '', amount: 0, ref: '',
+    id: uid(), date: today(), cat: 'Salary', description: '', amount: 0, ref: '',
   });
 
   const set = (k: keyof Expense, v: string | number) => setForm(prev => ({ ...prev, [k]: v }));
@@ -41,7 +41,7 @@ export default function ExpenseModal({ expense, onClose }: Props) {
                 {categories.map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
-            <div className="form-group full"><label>Description</label><input value={form.desc} onChange={e => set('desc', e.target.value)} /></div>
+            <div className="form-group full"><label>Description</label><input value={form.description} onChange={e => set('description', e.target.value)} /></div>
             <div className="form-group"><label>Amount (Rs)</label><input type="number" value={form.amount || ''} onChange={e => set('amount', Number(e.target.value))} /></div>
             <div className="form-group"><label>Reference</label><input value={form.ref} onChange={e => set('ref', e.target.value)} /></div>
           </div>

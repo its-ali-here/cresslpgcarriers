@@ -20,7 +20,7 @@ function costMt(t: Trip): string {
 }
 
 export default function Trips() {
-  const { trips, deleteTrip, approveTrip, approvePendingEdit, rejectPendingEdit } = useApp();
+  const { trips, deleteTrip, approveTrip, flagTrip, approvePendingEdit, rejectPendingEdit } = useApp();
   const { role } = useUser();
   const [editing, setEditing] = useState<Trip | null | 'new'>(null);
   const [page, setPage] = useState(1);
@@ -80,10 +80,11 @@ export default function Trips() {
             {filtered.length === 0 ? (
               <tr><td colSpan={11}><div className="empty"><div className="empty-icon">🚛</div>{vehicleFilter ? `No trips for vehicle ${vehicleFilter}.` : 'No trips logged yet. Click "New trip" to start.'}</div></td></tr>
             ) : pageTrips.map(t => (
-              <tr key={t.id} style={t.approved === false || t.pending_edit ? { background: 'rgba(255,200,0,0.10)' } : undefined}>
+              <tr key={t.id} style={t.flagged ? { background: 'rgba(255,60,60,0.08)' } : t.approved === false || t.pending_edit ? { background: 'rgba(255,200,0,0.10)' } : undefined}>
                 <td className="mono">
                   {t.no || '—'}
                   {t.approved === false && <span className="badge badge-yellow" style={{ marginLeft: 6 }}>Pending</span>}
+                  {t.flagged && <span className="badge badge-red" style={{ marginLeft: 6 }}>Flagged</span>}
                   {t.pending_edit && (() => {
                     const by = (t.pending_edit as Record<string, unknown>).__edited_by as string | undefined;
                     const at = (t.pending_edit as Record<string, unknown>).__edited_at as string | undefined;
@@ -116,6 +117,13 @@ export default function Trips() {
                         <button className="btn btn-ghost btn-sm" title="Apply pending edit" onClick={() => approvePendingEdit(t.id)}>✓</button>
                         <button className="btn btn-ghost btn-sm btn-danger" title="Reject pending edit" onClick={() => rejectPendingEdit(t.id)}>✗</button>
                       </>
+                    )}
+                    {isAdmin && (
+                      <button
+                        className={`btn btn-ghost btn-sm${t.flagged ? ' btn-danger' : ''}`}
+                        title={t.flagged ? 'Unflag trip' : 'Flag for review'}
+                        onClick={() => flagTrip(t.id, !t.flagged)}
+                      >⚑</button>
                     )}
                     {(isAdmin || isOperator) && <button className="btn btn-ghost btn-sm" title="Edit trip" onClick={() => setEditing(t)}>✏</button>}
                     {isAdmin && <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDelete(t.id)}>✕</button>}

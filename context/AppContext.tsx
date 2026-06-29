@@ -14,6 +14,7 @@ interface AppContextValue extends AppDB {
   saveTrip: (trip: Trip) => Promise<void>;
   deleteTrip: (id: string) => Promise<void>;
   approveTrip: (id: string) => Promise<void>;
+  flagTrip: (id: string, flagged: boolean) => Promise<void>;
   approvePendingEdit: (id: string) => Promise<void>;
   rejectPendingEdit: (id: string) => Promise<void>;
   // Expenses
@@ -126,6 +127,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const approveTrip = useCallback(async (id: string) => {
     await db.approveTrip(id);
     setState(prev => ({ ...prev, trips: prev.trips.map(t => t.id === id ? { ...t, approved: true } : t) }));
+  }, []);
+
+  const flagTrip = useCallback(async (id: string, flagged: boolean) => {
+    await db.flagTrip(id, flagged);
+    setState(prev => ({ ...prev, trips: prev.trips.map(t => t.id === id ? { ...t, flagged } : t) }));
   }, []);
 
   const approvePendingEdit = useCallback(async (id: string) => {
@@ -386,7 +392,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider value={{
       ...state, loading,
-      saveTrip, deleteTrip, approveTrip, approvePendingEdit, rejectPendingEdit,
+      saveTrip, deleteTrip, approveTrip, flagTrip, approvePendingEdit, rejectPendingEdit,
       saveExpense, deleteExpense,
       saveFleet, deleteFleet, approveFleet, approvePendingFleetEdit, rejectPendingFleetEdit,
       saveDriver, deleteDriver, approveDriver, approvePendingDriverEdit, rejectPendingDriverEdit,

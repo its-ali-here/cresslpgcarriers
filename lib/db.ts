@@ -87,6 +87,11 @@ export async function approveTrip(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function flagTrip(id: string, flagged: boolean): Promise<void> {
+  const { error } = await supabase.from('trips').update({ flagged }).eq('id', id);
+  if (error) throw error;
+}
+
 
 
 // ---- EXPENSES ----

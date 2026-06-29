@@ -125,6 +125,7 @@ export interface Trip {
   approved?: boolean;
   created_by?: string;
   pending_edit?: Record<string, unknown> | null;
+  flagged?: boolean;
 }
 
 

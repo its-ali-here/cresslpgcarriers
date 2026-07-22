@@ -7,24 +7,19 @@ import { uid } from '@/lib/utils';
 import { SITE_TYPES } from '@/lib/types';
 import type { SiteType } from '@/lib/types';
 
-type Tab = 'locations' | 'distances';
-
 // ── inline edit state helpers ────────────────────────────────────────────────
 interface InlineEdit { id: string; value: string; extra?: string; }
 
 export default function Destinations() {
   const {
-    provinces, cities, sites, cityDistances,
+    provinces, cities, sites,
     saveProvince, deleteProvince,
     saveCity, deleteCity,
     saveSite, deleteSite,
-    saveCityDistance, deleteCityDistance,
   } = useApp();
 
   const { role } = useUser();
   const isAdmin = role === 'admin';
-
-  const [tab, setTab] = useState<Tab>('locations');
 
   // expanded state for provinces and cities
   const [expandedProvinces, setExpandedProvinces] = useState<Set<string>>(new Set());
@@ -44,13 +39,6 @@ export default function Destinations() {
   const [editProvince, setEditProvince] = useState<InlineEdit | null>(null);
   const [editCity, setEditCity] = useState<InlineEdit | null>(null);
   const [editSite, setEditSite] = useState<InlineEdit | null>(null);
-
-  // distances state
-  const [addingDist, setAddingDist] = useState(false);
-  const [distFrom, setDistFrom] = useState('');
-  const [distTo, setDistTo] = useState('');
-  const [distKm, setDistKm] = useState('');
-  const [editDist, setEditDist] = useState<{ id: string; km: string } | null>(null);
 
   function toggleProvince(id: string) {
     setExpandedProvinces(prev => {
@@ -135,70 +123,21 @@ export default function Destinations() {
     await deleteSite(id);
   }
 
-  // ── Distance actions ──────────────────────────────────────────────────────
-  async function handleAddDist() {
-    const km = Number(distKm);
-    if (!distFrom || !distTo || !km || distFrom === distTo) return;
-    await saveCityDistance({ id: uid(), from_city_id: distFrom, to_city_id: distTo, km });
-    setDistFrom(''); setDistTo(''); setDistKm(''); setAddingDist(false);
-  }
-
-  async function handleEditDist(id: string) {
-    if (!editDist) return;
-    const d = cityDistances.find(x => x.id === id)!;
-    await saveCityDistance({ ...d, km: Number(editDist.km) });
-    setEditDist(null);
-  }
-
-  async function handleDeleteDist(id: string) {
-    if (!confirm('Delete this distance?')) return;
-    await deleteCityDistance(id);
-  }
-
-  const cityName = (id: string) => cities.find(c => c.id === id)?.name || id;
-
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="page">
       <div className="page-header">
         <div><div className="page-title">Destinations</div></div>
         <div className="header-actions">
-          {isAdmin && tab === 'locations' && (
+          {isAdmin && (
             <button className="btn btn-primary" onClick={() => { setAddingProvince(true); setNewProvinceName(''); }}>
               + Add province
-            </button>
-          )}
-          {isAdmin && tab === 'distances' && (
-            <button className="btn btn-primary" onClick={() => setAddingDist(true)}>
-              + Add distance
             </button>
           )}
         </div>
       </div>
 
-      {/* Tab bar */}
-      <div style={{ display: 'flex', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)' }}>
-        {(['locations', 'distances'] as Tab[]).map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className="btn btn-ghost"
-            style={{
-              borderRadius: 0,
-              borderBottom: tab === t ? '2px solid var(--accent)' : '2px solid transparent',
-              color: tab === t ? 'var(--accent)' : 'var(--text2)',
-              marginBottom: -1,
-              textTransform: 'capitalize',
-            }}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {/* ── LOCATIONS TAB ───────────────────────────────────────────────────── */}
-      {tab === 'locations' && (
-        <div>
+      <div>
           {/* Add province inline row */}
           {addingProvince && (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, padding: '8px 12px', background: 'var(--surface2)', borderRadius: 6 }}>
@@ -386,73 +325,6 @@ export default function Destinations() {
             );
           })}
         </div>
-      )}
-
-      {/* ── DISTANCES TAB ───────────────────────────────────────────────────── */}
-      {tab === 'distances' && (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr><th>From city</th><th>To city</th><th>Distance (km)</th><th></th></tr>
-            </thead>
-            <tbody>
-              {addingDist && (
-                <tr>
-                  <td>
-                    <select value={distFrom} onChange={e => setDistFrom(e.target.value)} style={{ width: '100%' }}>
-                      <option value="">— select —</option>
-                      {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </td>
-                  <td>
-                    <select value={distTo} onChange={e => setDistTo(e.target.value)} style={{ width: '100%' }}>
-                      <option value="">— select —</option>
-                      {cities.filter(c => c.id !== distFrom).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </td>
-                  <td><input type="number" value={distKm} onChange={e => setDistKm(e.target.value)} placeholder="km" style={{ width: '100%' }} /></td>
-                  <td>
-                    <div className="row-actions">
-                      <button className="btn btn-sm btn-primary" onClick={handleAddDist}>Save</button>
-                      <button className="btn btn-sm btn-ghost" onClick={() => setAddingDist(false)}>Cancel</button>
-                    </div>
-                  </td>
-                </tr>
-              )}
-              {cityDistances.length === 0 && !addingDist ? (
-                <tr><td colSpan={4}><div className="empty"><div className="empty-icon">🗺</div>No distances recorded yet.</div></td></tr>
-              ) : cityDistances.map(d => (
-                <tr key={d.id}>
-                  <td>{cityName(d.from_city_id)}</td>
-                  <td>{cityName(d.to_city_id)}</td>
-                  <td>
-                    {editDist?.id === d.id ? (
-                      <input type="number" value={editDist.km} onChange={e => setEditDist({ ...editDist, km: e.target.value })} style={{ width: 100 }} />
-                    ) : (
-                      <span className="mono">{d.km.toLocaleString()} km</span>
-                    )}
-                  </td>
-                  <td>
-                    <div className="row-actions">
-                      {editDist?.id === d.id ? (
-                        <>
-                          <button className="btn btn-sm btn-primary" onClick={() => handleEditDist(d.id)}>Save</button>
-                          <button className="btn btn-sm btn-ghost" onClick={() => setEditDist(null)}>Cancel</button>
-                        </>
-                      ) : (
-                        <>
-                          {isAdmin && <button className="btn btn-ghost btn-sm" onClick={() => setEditDist({ id: d.id, km: String(d.km) })}>✏</button>}
-                          {isAdmin && <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDeleteDist(d.id)}>✕</button>}
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
     </div>
   );
 }

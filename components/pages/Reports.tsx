@@ -5,9 +5,10 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useApp } from '@/context/AppContext';
 import { rs, today } from '@/lib/utils';
+import { weightedAvgKmLtr, vehicleExpenseRisk } from '@/lib/fleetPerformance';
 import type { Trip } from '@/lib/types';
 
-type ReportTab = 'pl' | 'tripwise' | 'bowserwise' | 'monthwise' | 'diesel';
+type ReportTab = 'summary' | 'tripwise' | 'bowserwise' | 'monthwise';
 
 function fmtDate(iso: string) {
   if (!iso) return '—';
@@ -42,8 +43,8 @@ function viewPDF(
 }
 
 export default function Reports() {
-  const [tab, setTab] = useState<ReportTab>('pl');
-  const { trips, expenses, settings } = useApp();
+  const [tab, setTab] = useState<ReportTab>('summary');
+  const { trips, expenses, fleet, settings } = useApp();
 
   const yearStart = new Date().getFullYear() + '-01-01';
   const [dateFrom, setDateFrom] = useState(yearStart);
@@ -58,11 +59,10 @@ export default function Reports() {
   const company = settings.company || 'CRESS LPG CARRIERS';
 
   const TABS: [ReportTab, string][] = [
-    ['pl', 'P&L Summary'],
+    ['summary', 'Summary'],
     ['tripwise', 'Trip Report'],
     ['bowserwise', 'Bowserwise'],
     ['monthwise', 'Monthwise'],
-    ['diesel', 'Diesel Analysis'],
   ];
 
   return (
@@ -83,44 +83,49 @@ export default function Reports() {
         ))}
       </div>
 
-      {tab === 'pl'         && <PLReport trips={filteredTrips} expenses={expenses} company={company} dateRange={dateRange} dateFrom={dateFrom} dateTo={dateTo} />}
+      {tab === 'summary'    && <SummaryReport trips={filteredTrips} expenses={expenses} fleet={fleet} company={company} dateRange={dateRange} dateFrom={dateFrom} dateTo={dateTo} />}
       {tab === 'tripwise'   && <TripwiseReport trips={filteredTrips} company={company} dateRange={dateRange} />}
       {tab === 'bowserwise' && <BowserwiseReport trips={filteredTrips} company={company} dateRange={dateRange} />}
       {tab === 'monthwise'  && <MonthwiseReport trips={filteredTrips} company={company} dateRange={dateRange} />}
-      {tab === 'diesel'     && <DieselReport trips={filteredTrips} dieselBench={settings.dieselBench} company={company} dateRange={dateRange} />}
     </div>
   );
 }
 
-// ─── P&L Summary ─────────────────────────────────────────────────────────────
+// ─── Summary ──────────────────────────────────────────────────────────────────
 
-function PLReport({ trips, expenses, company, dateRange, dateFrom, dateTo }: {
+function SummaryReport({ trips, expenses, fleet, company, dateRange, dateFrom, dateTo }: {
   trips: Trip[];
   expenses: ReturnType<typeof useApp>['expenses'];
+  fleet: ReturnType<typeof useApp>['fleet'];
   company: string;
   dateRange: string;
   dateFrom: string;
   dateTo: string;
 }) {
   const filteredExp = expenses.filter(e => !e.date || (e.date >= dateFrom && e.date <= dateTo));
-  const revenue   = trips.reduce((s, t) => s + (t.lpg_rent_total || 0), 0);
-  const tripExp   = trips.reduce((s, t) => s + (t.total_exp || 0), 0);
-  const genExp    = filteredExp.reduce((s, e) => s + e.amount, 0);
-  const net       = revenue - tripExp - genExp;
+  const revenue      = trips.reduce((s, t) => s + (t.lpg_rent_total || 0), 0);
+  const tripExp       = trips.reduce((s, t) => s + (t.total_exp || 0), 0);
+  const genExp        = filteredExp.reduce((s, e) => s + e.amount, 0);
+  const net           = revenue - tripExp - genExp;
+  const dieselConsumed = trips.reduce((s, t) => s + (t.diesel_consumed || 0), 0);
+  const dieselCost     = trips.reduce((s, t) => s + (t.diesel_cost || 0), 0);
+  const totalKm        = trips.filter(t => t.diesel_consumed > 0).reduce((s, t) => s + (t.km || 0), 0);
+  const dieselAvg       = dieselConsumed > 0 ? totalKm / dieselConsumed : 0;
+  const activeFleet     = fleet.filter(f => f.status === 'Running in fleet').length;
 
   function handlePDF() {
-    const head = [['Trip #', 'Load Date', 'Vehicle', 'Route', 'Rent Total', 'Expenses', 'Net P/L', 'Cost/ton']];
-    const body = trips.map(t => [
-      t.no || '—',
-      fmtDate(t.load_date),
-      t.vehicle || '—',
-      `${t.from_city || ''}${t.from_city && t.to_city ? ' → ' : ''}${t.to_city || ''}`,
-      rs(t.lpg_rent_total),
-      rs(t.total_exp),
-      rs(t.net_pl),
-      t.lifted > 0 ? 'Rs ' + (t.total_exp / t.lifted * 1000).toFixed(0) + '/ton' : '—',
-    ]);
-    viewPDF(company, 'P&L Summary', dateRange, head, body);
+    const head = [['Metric', 'Value']];
+    const body = [
+      ['Total rent', rs(revenue)],
+      ['Trip expenses', rs(tripExp)],
+      ['Other expenses', rs(genExp)],
+      ['Net profit', rs(net)],
+      ['Total diesel consumed', `${dieselConsumed.toLocaleString()} ltr`],
+      ['Total diesel cost', rs(dieselCost)],
+      ['Total diesel average', dieselAvg ? `${dieselAvg.toFixed(2)} km/ltr` : '—'],
+      ['Fleet size', `${fleet.length} (${activeFleet} active)`],
+    ];
+    viewPDF(company, 'Summary', dateRange, head, body);
   }
 
   return (
@@ -128,34 +133,17 @@ function PLReport({ trips, expenses, company, dateRange, dateFrom, dateTo }: {
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
         <button className="btn btn-ghost btn-sm" onClick={handlePDF}>View PDF</button>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 12 }}>
         <div className="metric"><div className="metric-label">Total rent</div><div className="metric-value green">{rs(revenue)}</div><div className="metric-sub">from {trips.length} trips</div></div>
         <div className="metric"><div className="metric-label">Trip expenses</div><div className="metric-value red">{rs(tripExp)}</div></div>
-        <div className="metric"><div className="metric-label">General expenses</div><div className="metric-value red">{rs(genExp)}</div></div>
+        <div className="metric"><div className="metric-label">Other expenses</div><div className="metric-value red">{rs(genExp)}</div></div>
         <div className="metric"><div className="metric-label">Net profit</div><div className={`metric-value ${net >= 0 ? 'green' : 'red'}`}>{rs(net)}</div></div>
       </div>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr><th>Trip #</th><th>Load Date</th><th>Vehicle</th><th>Route</th><th>Rent Total</th><th>Expenses</th><th>Net P/L</th><th>Cost/ton</th></tr>
-          </thead>
-          <tbody>
-            {trips.length === 0 ? (
-              <tr><td colSpan={8}><div className="empty">No trips in this period.</div></td></tr>
-            ) : trips.map(t => (
-              <tr key={t.id}>
-                <td className="mono">{t.no || '—'}</td>
-                <td>{fmtDate(t.load_date)}</td>
-                <td className="mono">{t.vehicle || '—'}</td>
-                <td style={{ fontSize: 11 }}>{t.from_city || ''}{t.from_city && t.to_city ? ' → ' : ''}{t.to_city || ''}</td>
-                <td className="mono">{rs(t.lpg_rent_total)}</td>
-                <td className="mono" style={{ color: 'var(--red)' }}>{rs(t.total_exp)}</td>
-                <td className="mono" style={{ color: t.net_pl >= 0 ? 'var(--green)' : 'var(--red)' }}>{rs(t.net_pl)}</td>
-                <td className="mono">{t.lifted > 0 ? 'Rs ' + (t.total_exp / t.lifted * 1000).toFixed(0) + '/ton' : '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
+        <div className="metric"><div className="metric-label">Total diesel consumed</div><div className="metric-value">{dieselConsumed.toLocaleString()} ltr</div></div>
+        <div className="metric"><div className="metric-label">Total diesel cost</div><div className="metric-value red">{rs(dieselCost)}</div></div>
+        <div className="metric"><div className="metric-label">Total diesel average</div><div className="metric-value gold">{dieselAvg ? dieselAvg.toFixed(2) : '—'} km/ltr</div></div>
+        <div className="metric"><div className="metric-label">Fleet size</div><div className="metric-value">{fleet.length}</div><div className="metric-sub">{activeFleet} active</div></div>
       </div>
     </>
   );
@@ -230,12 +218,14 @@ function TripwiseReport({ trips, company, dateRange }: { trips: Trip[]; company:
 // ─── Bowserwise ───────────────────────────────────────────────────────────────
 
 function BowserwiseReport({ trips, company, dateRange }: { trips: Trip[]; company: string; dateRange: string }) {
-  type Row = { vehicle: string; count: number; km: number; lifted: number; delivered: number; rent: number; exp: number; pl: number; avgKmLtr: number };
+  type Row = { vehicle: string; count: number; km: number; lifted: number; delivered: number; rent: number; exp: number; pl: number; avgKmLtr: number; riskShare: number | null };
+
+  const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
 
   const map = new Map<string, Row>();
   for (const t of trips) {
     const v = t.vehicle || '(unknown)';
-    if (!map.has(v)) map.set(v, { vehicle: v, count: 0, km: 0, lifted: 0, delivered: 0, rent: 0, exp: 0, pl: 0, avgKmLtr: 0 });
+    if (!map.has(v)) map.set(v, { vehicle: v, count: 0, km: 0, lifted: 0, delivered: 0, rent: 0, exp: 0, pl: 0, avgKmLtr: 0, riskShare: null });
     const r = map.get(v)!;
     r.count++;
     r.km       += t.km || 0;
@@ -246,24 +236,45 @@ function BowserwiseReport({ trips, company, dateRange }: { trips: Trip[]; compan
     r.pl       += t.net_pl || 0;
   }
 
-  // Weighted avg km/ltr per vehicle
+  // Weighted avg km/ltr and expense-risk share per vehicle
+  const riskByVehicle = vehicleExpenseRisk(trips);
   for (const [v, r] of map) {
-    const vTrips = trips.filter(t => (t.vehicle || '(unknown)') === v && t.diesel_consumed > 0);
-    const totalConsumed = vTrips.reduce((s, t) => s + t.diesel_consumed, 0);
-    const totalKm       = vTrips.reduce((s, t) => s + (t.km || 0), 0);
-    r.avgKmLtr = totalConsumed > 0 ? totalKm / totalConsumed : 0;
+    const vTrips = trips.filter(t => (t.vehicle || '(unknown)') === v);
+    r.avgKmLtr = weightedAvgKmLtr(vTrips) ?? 0;
+    r.riskShare = riskByVehicle.get(v)?.riskShare ?? null;
   }
 
   const rows = [...map.values()].sort((a, b) => a.vehicle.localeCompare(b.vehicle));
+  const vehicleTrips = selectedVehicle
+    ? trips.filter(t => (t.vehicle || '(unknown)') === selectedVehicle).sort((a, b) => (b.load_date || '').localeCompare(a.load_date || ''))
+    : [];
 
   function handlePDF() {
-    const head = [['Vehicle', '# Trips', 'Total KM', 'LPG Lifted (kg)', 'LPG Delivered (kg)', 'Total Rent', 'Total Exp', 'Net P/L', 'Avg km/ltr']];
+    const head = [['Vehicle', '# Trips', 'Total KM', 'LPG Lifted (kg)', 'LPG Delivered (kg)', 'Total Rent', 'Total Exp', 'Net P/L', 'Avg km/ltr', 'Risk %']];
     const body = rows.map(r => [
       r.vehicle, r.count, fmtNum(r.km), fmtNum(r.lifted), fmtNum(r.delivered),
       rs(r.rent), rs(r.exp), rs(r.pl),
       r.avgKmLtr ? r.avgKmLtr.toFixed(2) : '—',
+      r.riskShare !== null ? `${Math.round(r.riskShare * 100)}%` : '—',
     ]);
     viewPDF(company, 'Bowserwise Report', dateRange, head, body);
+  }
+
+  function handleVehiclePDF() {
+    if (!selectedVehicle) return;
+    const head = [['Trip #', 'Load Date', 'Route', 'LPG Lifted', 'LPG Delivered', 'Rent Total', 'Act. Days', 'Total Exp', 'Net P/L']];
+    const body = vehicleTrips.map(t => [
+      t.no || '—',
+      fmtDate(t.load_date),
+      `${t.from_city || ''}${t.from_city && t.to_city ? ' → ' : ''}${t.to_city || ''}`,
+      fmtNum(t.lifted),
+      fmtNum(t.delivered),
+      rs(t.lpg_rent_total),
+      t.act_days || '—',
+      rs(t.total_exp),
+      rs(t.net_pl),
+    ]);
+    viewPDF(company, `Trips — ${selectedVehicle}`, dateRange, head, body);
   }
 
   return (
@@ -271,19 +282,23 @@ function BowserwiseReport({ trips, company, dateRange }: { trips: Trip[]; compan
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
         <button className="btn btn-ghost btn-sm" onClick={handlePDF}>View PDF</button>
       </div>
-      <div className="table-wrap">
+      <div className="table-wrap" style={{ marginBottom: selectedVehicle ? '1.5rem' : 0 }}>
         <table>
           <thead>
             <tr>
               <th>Vehicle</th><th># Trips</th><th>Total KM</th><th>LPG Lifted (kg)</th>
-              <th>LPG Delivered (kg)</th><th>Total Rent</th><th>Total Exp</th><th>Net P/L</th><th>Avg km/ltr</th>
+              <th>LPG Delivered (kg)</th><th>Total Rent</th><th>Total Exp</th><th>Net P/L</th><th>Avg km/ltr</th><th>Risk %</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={9}><div className="empty">No trips in this period.</div></td></tr>
+              <tr><td colSpan={10}><div className="empty">No trips in this period.</div></td></tr>
             ) : rows.map(r => (
-              <tr key={r.vehicle}>
+              <tr
+                key={r.vehicle}
+                onClick={() => setSelectedVehicle(prev => prev === r.vehicle ? null : r.vehicle)}
+                style={{ cursor: 'pointer', background: selectedVehicle === r.vehicle ? 'var(--bg3)' : undefined }}
+              >
                 <td className="mono">{r.vehicle}</td>
                 <td className="mono">{r.count}</td>
                 <td className="mono">{r.km ? fmtNum(r.km) + ' km' : '—'}</td>
@@ -293,11 +308,51 @@ function BowserwiseReport({ trips, company, dateRange }: { trips: Trip[]; compan
                 <td className="mono" style={{ color: 'var(--red)' }}>{rs(r.exp)}</td>
                 <td className="mono" style={{ color: r.pl >= 0 ? 'var(--green)' : 'var(--red)' }}>{rs(r.pl)}</td>
                 <td className="mono">{r.avgKmLtr ? r.avgKmLtr.toFixed(2) : '—'}</td>
+                <td className="mono">{r.riskShare !== null ? `${Math.round(r.riskShare * 100)}%` : '—'}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {selectedVehicle && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 0.75rem' }}>
+            <div className="section-label" style={{ margin: 0 }}>Trips — {selectedVehicle}</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-ghost btn-sm" onClick={handleVehiclePDF}>View PDF</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setSelectedVehicle(null)}>✕ Close</button>
+            </div>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Trip #</th><th>Load Date</th><th>Route</th><th>LPG Lifted</th>
+                  <th>LPG Delivered</th><th>Rent Total</th><th>Act. Days</th><th>Total Exp</th><th>Net P/L</th>
+                </tr>
+              </thead>
+              <tbody>
+                {vehicleTrips.length === 0 ? (
+                  <tr><td colSpan={9}><div className="empty">No trips for this vehicle in this period.</div></td></tr>
+                ) : vehicleTrips.map(t => (
+                  <tr key={t.id}>
+                    <td className="mono">{t.no || '—'}</td>
+                    <td>{fmtDate(t.load_date)}</td>
+                    <td style={{ fontSize: 11 }}>{t.from_city || ''}{t.from_city && t.to_city ? ' → ' : ''}{t.to_city || ''}</td>
+                    <td className="mono">{fmtNum(t.lifted)}</td>
+                    <td className="mono">{fmtNum(t.delivered)}</td>
+                    <td className="mono">{rs(t.lpg_rent_total)}</td>
+                    <td className="mono">{t.act_days || '—'}</td>
+                    <td className="mono">{rs(t.total_exp)}</td>
+                    <td className="mono" style={{ color: t.net_pl >= 0 ? 'var(--green)' : 'var(--red)' }}>{rs(t.net_pl)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </>
   );
 }
@@ -362,73 +417,3 @@ function MonthwiseReport({ trips, company, dateRange }: { trips: Trip[]; company
   );
 }
 
-// ─── Diesel Analysis ──────────────────────────────────────────────────────────
-
-function DieselReport({ trips, dieselBench, company, dateRange }: {
-  trips: Trip[];
-  dieselBench: number;
-  company: string;
-  dateRange: string;
-}) {
-  const filtered = trips.filter(t => t.diesel_consumed > 0);
-  const bench = dieselBench || 2.6;
-
-  function handlePDF() {
-    const head = [['Trip #', 'Load Date', 'Vehicle', 'Distance', 'Consumed (ltr)', 'Avg km/ltr', 'vs Benchmark', 'Cost']];
-    const body = filtered.map(t => {
-      const avg = parseFloat(t.diesel_avg) || 0;
-      const diff = avg - bench;
-      return [
-        t.no || '—',
-        fmtDate(t.load_date),
-        t.vehicle || '—',
-        t.km ? t.km + ' km' : '—',
-        t.diesel_consumed,
-        t.diesel_avg || '—',
-        (diff >= 0 ? '+' : '') + diff.toFixed(2),
-        rs(t.diesel_cost),
-      ];
-    });
-    viewPDF(company, 'Diesel Analysis', dateRange, head, body);
-  }
-
-  return (
-    <>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-        <button className="btn btn-ghost btn-sm" onClick={handlePDF}>View PDF</button>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: '1.5rem' }}>
-        <div className="metric"><div className="metric-label">Total diesel consumed</div><div className="metric-value">{filtered.reduce((s, t) => s + t.diesel_consumed, 0).toLocaleString()} ltr</div></div>
-        <div className="metric"><div className="metric-label">Total diesel cost</div><div className="metric-value red">{rs(filtered.reduce((s, t) => s + t.diesel_cost, 0))}</div></div>
-        <div className="metric"><div className="metric-label">Benchmark avg</div><div className="metric-value gold">{bench} km/ltr</div></div>
-      </div>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr><th>Trip #</th><th>Load Date</th><th>Vehicle</th><th>Distance</th><th>Consumed (ltr)</th><th>Avg km/ltr</th><th>vs Benchmark</th><th>Cost</th></tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 ? (
-              <tr><td colSpan={8}><div className="empty">No diesel data in this period.</div></td></tr>
-            ) : filtered.map(t => {
-              const avg = parseFloat(t.diesel_avg) || 0;
-              const diff = avg - bench;
-              return (
-                <tr key={t.id}>
-                  <td className="mono">{t.no || '—'}</td>
-                  <td>{fmtDate(t.load_date)}</td>
-                  <td className="mono">{t.vehicle || '—'}</td>
-                  <td className="mono">{t.km ? t.km + ' km' : '—'}</td>
-                  <td className="mono">{t.diesel_consumed}</td>
-                  <td className="mono">{t.diesel_avg}</td>
-                  <td className="mono" style={{ color: diff >= 0 ? 'var(--green)' : 'var(--red)' }}>{diff >= 0 ? '+' : ''}{diff.toFixed(2)}</td>
-                  <td className="mono">{rs(t.diesel_cost)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
-}

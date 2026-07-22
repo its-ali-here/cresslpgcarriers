@@ -1,14 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useApp } from '@/context/AppContext';
-import { rs } from '@/lib/utils';
+import { computeFleetPerformance, getBestPerformers, getWorstPerformers, getHighestRisk, fleetAvgRiskShare } from '@/lib/fleetPerformance';
+import BarRanking from '@/components/charts/BarRanking';
 
 const PakistanMap = dynamic(() => import('@/components/PakistanMap'), { ssr: false });
 
 export default function Dashboard() {
-  const { trips, expenses, fleet, drivers } = useApp();
+  const { trips, settings } = useApp();
   const [dateStr, setDateStr] = useState('');
 
   useEffect(() => {
@@ -16,81 +17,97 @@ export default function Dashboard() {
     setDateStr(d.toLocaleDateString('en-PK', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
   }, []);
 
-  const revenue = trips.filter(t => t.status === 'Completed').reduce((s, t) => s + t.billed, 0);
-  const tripExp = trips.reduce((s, t) => s + t.total_exp, 0);
-  const genExp = expenses.reduce((s, e) => s + e.amount, 0);
-  const net = revenue - tripExp - genExp;
-  const activeFleet = fleet.filter(f => f.status === 'Running in fleet').length;
-  const activeDrivers = drivers.length;
-
-  const recentTrips = [...trips].sort((a, b) => (b.load_date || '').localeCompare(a.load_date || '')).slice(0, 6);
-
+  const fleetPerf = useMemo(() => computeFleetPerformance(trips, settings.dieselBench), [trips, settings.dieselBench]);
+  const worstPerformers = getWorstPerformers(fleetPerf);
+  const bestPerformer = getBestPerformers(fleetPerf, 1)[0];
+  const worstPerformer = worstPerformers[0];
+  const highestRisk = getHighestRisk(fleetPerf, 1)[0];
+  const avgRiskShare = fleetAvgRiskShare(fleetPerf);
 
   return (
-    <div className="page">
-      <div className="page-header">
+    <div className="page" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div className="page-header" style={{ flexShrink: 0 }}>
         <div>
           <div className="page-title">Dashboard</div>
           <div className="page-sub">{dateStr}</div>
         </div>
       </div>
 
-      <div className="metrics">
-        <div className="metric">
-          <div className="metric-label">Total revenue</div>
-          <div className="metric-value green">{rs(revenue)}</div>
-          <div className="metric-sub">{trips.filter(t => t.status === 'Completed').length} completed trips</div>
-        </div>
-        <div className="metric">
-          <div className="metric-label">Total expenses</div>
-          <div className="metric-value red">{rs(tripExp + genExp)}</div>
-        </div>
-        <div className="metric">
-          <div className="metric-label">Net profit</div>
-          <div className={`metric-value ${net >= 0 ? 'green' : 'red'}`}>{rs(net)}</div>
-        </div>
-        <div className="metric">
-          <div className="metric-label">Active fleet</div>
-          <div className="metric-value">{activeFleet}</div>
-          <div className="metric-sub">of {fleet.length} bowsers</div>
-        </div>
-        <div className="metric">
-          <div className="metric-label">Active drivers</div>
-          <div className="metric-value">{activeDrivers}</div>
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
-        <div>
-          <div className="section-label">Recent trips</div>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr><th>Trip #</th><th>Vehicle</th><th>Route</th><th>Amount</th><th>Net P/L</th></tr>
-              </thead>
-              <tbody>
-                {recentTrips.length === 0 ? (
-                  <tr><td colSpan={5}><div className="empty" style={{ padding: '1rem' }}>No trips yet</div></td></tr>
-                ) : recentTrips.map(t => (
-                  <tr key={t.id}>
-                    <td className="mono">{t.no || '—'}</td>
-                    <td className="mono">{t.vehicle || '—'}</td>
-                    <td style={{ fontSize: 11 }}>{t.from || ''}{t.from && t.to ? ' → ' : ''}{t.to || ''}</td>
-                    <td className="mono">{rs(t.billed)}</td>
-                    <td className="mono" style={{ color: t.net_pl >= 0 ? 'var(--green)' : 'var(--red)' }}>{rs(t.net_pl)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {trips.length === 0 ? (
+        <div className="empty">No trips yet — fleet performance will appear here once trips are logged.</div>
+      ) : worstPerformers.length === 0 ? (
+        <div className="empty">Not enough trip data yet to rank fleet performance.</div>
+      ) : (
+        <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '1.25rem' }}>
+          <div style={{ minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            <div className="metrics" style={{ flexShrink: 0, marginBottom: '0.85rem' }}>
+              {bestPerformer && (
+                <div className="metric">
+                  <div className="metric-label">Best performer</div>
+                  <div className="metric-value green">{bestPerformer.vehicle}</div>
+                  <div className="metric-sub">Score {Math.round(bestPerformer.compositeScore ?? 0)}/100</div>
+                </div>
+              )}
+              {worstPerformer && (
+                <div className="metric">
+                  <div className="metric-label">Worst performer</div>
+                  <div className="metric-value red">{worstPerformer.vehicle}</div>
+                  <div className="metric-sub">Score {Math.round(worstPerformer.compositeScore ?? 0)}/100</div>
+                </div>
+              )}
+              {highestRisk && highestRisk.riskShare !== null && (
+                <div className="metric">
+                  <div className="metric-label">Highest expense-risk</div>
+                  <div className="metric-value gold">{highestRisk.vehicle}</div>
+                  <div className="metric-sub">
+                    {Math.round(highestRisk.riskShare * 100)}% of cost is chalans/tyre-bills/etc.
+                    {avgRiskShare !== null ? ` (fleet avg ${Math.round(avgRiskShare * 100)}%)` : ''}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+              <div style={{ minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                <div className="section-label" style={{ margin: '0 0 0.6rem', flexShrink: 0 }}>Composite score (worst first)</div>
+                <BarRanking
+                  items={worstPerformers.map(p => ({ label: p.vehicle, value: Math.round(p.compositeScore ?? 0) }))}
+                />
+              </div>
+              <div style={{ minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                <div className="section-label" style={{ margin: '0 0 0.6rem', flexShrink: 0 }}>Underperforming vehicles</div>
+                <div className="table-wrap" style={{ overflow: 'auto' }}>
+                  <table>
+                    <thead>
+                      <tr><th>Vehicle</th><th>Score</th><th>km/ltr</th><th>Days vs peers</th><th>Risk %</th></tr>
+                    </thead>
+                    <tbody>
+                      {worstPerformers.map(p => (
+                        <tr key={p.vehicle}>
+                          <td className="mono">{p.vehicle}</td>
+                          <td className="mono">{Math.round(p.compositeScore ?? 0)}</td>
+                          <td className="mono">{p.avgKmLtr !== null ? p.avgKmLtr.toFixed(2) : '—'}</td>
+                          <td className="mono" style={{ color: p.overrunRatio !== null && p.overrunRatio > 1 ? 'var(--red)' : undefined }}>
+                            {p.overrunRatio !== null ? `${p.overrunRatio > 1 ? '+' : ''}${Math.round((p.overrunRatio - 1) * 100)}%` : '—'}
+                          </td>
+                          <td className="mono" style={{ color: p.riskShare !== null && avgRiskShare !== null && p.riskShare > avgRiskShare * 1.3 ? 'var(--accent2)' : undefined }}>
+                            {p.riskShare !== null ? `${Math.round(p.riskShare * 100)}%` : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            <div className="section-label" style={{ flexShrink: 0 }}>Operations map</div>
+            <div style={{ flex: 1, minHeight: 0, borderRadius: 'var(--radius2)', overflow: 'hidden', border: '1px solid var(--border)' }}>
+              <PakistanMap />
+            </div>
           </div>
         </div>
-        <div>
-          <div className="section-label">Operations map</div>
-          <div style={{ height: 360, borderRadius: 'var(--radius2)', overflow: 'hidden', border: '1px solid var(--border)' }}>
-            <PakistanMap />
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

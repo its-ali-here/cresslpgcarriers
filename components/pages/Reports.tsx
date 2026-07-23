@@ -19,6 +19,48 @@ function fmtNum(n: number) {
   return n ? n.toLocaleString('en-PK') : '0';
 }
 
+// Letterhead styling — matches the CRESS LPG CARRIERS company letterhead (gold bars, dark title, footer addresses).
+const LETTERHEAD_GOLD: [number, number, number] = [191, 155, 48];
+const LETTERHEAD_DARK: [number, number, number] = [30, 41, 59];
+const HEAD_OFFICE_LINE = 'Head Office | 30/1-B Lawrence Road, Lahore - Pakistan. Tel: (042) 36371323, 36371324 Fax: (042) 36362402';
+const SITE_OFFICE_LINE = 'Site Office | 23-Km Multan Road, Lahore - Pakistan. Tel: (042) 35978411, 35978412';
+
+function drawLetterheadHeader(doc: jsPDF, company: string, title: string, dateRange: string) {
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  doc.setFillColor(...LETTERHEAD_GOLD);
+  doc.rect(0, 8, pageWidth, 1.3, 'F');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(...LETTERHEAD_DARK);
+  doc.text(company.toUpperCase(), pageWidth / 2, 16, { align: 'center' });
+
+  doc.setFillColor(...LETTERHEAD_GOLD);
+  doc.rect(0, 18.5, pageWidth, 1.3, 'F');
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(60, 60, 60);
+  doc.text(title, 14, 27);
+  doc.text(dateRange, 14, 32);
+}
+
+function drawLetterheadFooter(doc: jsPDF) {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const barY = pageHeight - 16;
+
+  doc.setFillColor(...LETTERHEAD_GOLD);
+  doc.rect(0, barY, pageWidth, 0.8, 'F');
+
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(7);
+  doc.setTextColor(...LETTERHEAD_DARK);
+  doc.text(HEAD_OFFICE_LINE, pageWidth / 2, barY + 4, { align: 'center' });
+  doc.text(SITE_OFFICE_LINE, pageWidth / 2, barY + 8, { align: 'center' });
+}
+
 function viewPDF(
   company: string,
   title: string,
@@ -27,17 +69,17 @@ function viewPDF(
   body: (string | number)[][],
 ) {
   const doc = new jsPDF({ orientation: 'landscape' });
-  doc.setFontSize(13);
-  doc.text(company, 14, 14);
-  doc.setFontSize(9);
-  doc.text(title, 14, 21);
-  doc.text(dateRange, 14, 27);
   autoTable(doc, {
-    startY: 33,
+    startY: 36,
     head,
     body,
     styles: { fontSize: 7.5 },
-    headStyles: { fillColor: [30, 41, 59] },
+    headStyles: { fillColor: LETTERHEAD_DARK },
+    margin: { top: 36, bottom: 22 },
+    didDrawPage: () => {
+      drawLetterheadHeader(doc, company, title, dateRange);
+      drawLetterheadFooter(doc);
+    },
   });
   window.open(doc.output('bloburl'), '_blank');
 }

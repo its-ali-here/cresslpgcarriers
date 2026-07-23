@@ -186,6 +186,32 @@ tr:hover .row-actions { opacity: 1; }
 .login-form { display: flex; flex-direction: column; gap: 16px; }
 .login-error { background: rgba(214,69,69,0.12); border: 1px solid rgba(214,69,69,0.35); color: var(--red); border-radius: var(--radius); padding: 8px 12px; font-size: 12px; font-family: var(--cond); }
 
+/* LOGIN ILLUSTRATION — bowser + prime mover on a road, wheels spin & lane stripes scroll to sell forward motion while the rig itself stays put */
+.login-illustration { margin-bottom: 1.5rem; padding: 8px 4px 0; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius2); overflow: hidden; }
+.login-illustration svg { width: 100%; height: auto; display: block; }
+.login-outline { fill: none; stroke: var(--navy); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.login-outline-thin { fill: none; stroke: var(--steel); stroke-width: 1.4; stroke-linecap: round; }
+.login-tank-text { font-family: var(--cond); font-size: 10px; font-weight: 700; letter-spacing: 0.02em; fill: var(--navy); }
+.login-tank-band { stroke: var(--accent); stroke-width: 2; }
+.login-road-line { stroke: var(--border2); stroke-width: 2; }
+.login-stripe-dash { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
+.login-road-stripes { animation: login-stripe-scroll 0.5s linear infinite; }
+.login-wheel { transform-box: fill-box; transform-origin: center; animation: login-wheel-spin 0.6s linear infinite; }
+.login-vehicle { transform-box: fill-box; transform-origin: 50% 100%; animation: login-vehicle-bounce 4.2s ease-in-out infinite; }
+
+@keyframes login-stripe-scroll { to { transform: translateX(-32px); } }
+@keyframes login-wheel-spin { to { transform: rotate(360deg); } }
+@keyframes login-vehicle-bounce {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  22%  { transform: translate(0, -0.5px) rotate(-0.1deg); }
+  48%  { transform: translate(0, 0.2px) rotate(0.05deg); }
+  75%  { transform: translate(0, -0.3px) rotate(-0.05deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-road-stripes, .login-wheel, .login-vehicle { animation: none; }
+}
+
 /* TOPBAR EXTRAS */
 .topbar-welcome { font-size: 12px; color: #9fb0c9; font-family: var(--cond); letter-spacing: 0.04em; }
 .role-badge { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; font-family: var(--cond); color: var(--accent); text-transform: uppercase; padding: 2px 7px; border: 1px solid var(--accent); border-radius: 4px; }

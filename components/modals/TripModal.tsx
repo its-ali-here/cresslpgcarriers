@@ -81,7 +81,7 @@ function tripToForm(t: Trip): TripForm {
 }
 
 export default function TripModal({ trip, onClose }: Props) {
-  const { drivers, provinces, cities, sites, cityDistances, expenseCategories, dieselSuppliers, saveTrip, saveSite, saveCity, saveExpenseCategory, saveDieselSupplier } = useApp();
+  const { drivers, provinces, districts, sites, expenseCategories, dieselSuppliers, saveTrip, saveSite, saveDistrict, saveExpenseCategory, saveDieselSupplier } = useApp();
   const { userId, role, name: userName } = useUser();
 
   // Operators editing an approved trip see their pending changes (if any); admins always see main data
@@ -115,10 +115,10 @@ export default function TripModal({ trip, onClose }: Props) {
   const [toNewSiteName, setToNewSiteName] = useState('');
   const [toNewSiteType, setToNewSiteType] = useState<typeof SITE_TYPES_LIST[number]>('Other');
 
-  const [fromCityAdding, setFromCityAdding] = useState(false);
-  const [fromNewCityName, setFromNewCityName] = useState('');
-  const [toCityAdding, setToCityAdding] = useState(false);
-  const [toNewCityName, setToNewCityName] = useState('');
+  const [fromDistrictAdding, setFromDistrictAdding] = useState(false);
+  const [fromNewDistrictName, setFromNewDistrictName] = useState('');
+  const [toDistrictAdding, setToDistrictAdding] = useState(false);
+  const [toNewDistrictName, setToNewDistrictName] = useState('');
   const [pendingCatRow, setPendingCatRow] = useState<number | null>(null);
   const [newCatName, setNewCatName] = useState('');
   const [pendingSupplierRow, setPendingSupplierRow] = useState<number | null>(null);
@@ -132,73 +132,58 @@ export default function TripModal({ trip, onClose }: Props) {
     setForm(prev => ({ ...prev, vehicle: reg }));
   }
 
-  function tryFillKm(fromCityName: string, toCityName: string) {
-    const fc = cities.find(c => c.name === fromCityName);
-    const tc = cities.find(c => c.name === toCityName);
-    if (!fc || !tc) return;
-    const dist = cityDistances.find(d =>
-      (d.from_city_id === fc.id && d.to_city_id === tc.id) ||
-      (d.from_city_id === tc.id && d.to_city_id === fc.id)
-    );
-    if (dist) setForm(prev => ({ ...prev, km: dist.km }));
-  }
-
   function handleFromProvince(prov: string) {
     setForm(prev => ({ ...prev, from_province: prov, from_city: '', from: '' }));
     setFromSiteAdding(false);
-    setFromCityAdding(false);
+    setFromDistrictAdding(false);
   }
 
-  function handleFromCity(cityName: string) {
-    setForm(prev => ({ ...prev, from_city: cityName, from: '' }));
+  function handleFromDistrict(districtName: string) {
+    setForm(prev => ({ ...prev, from_city: districtName, from: '' }));
     setFromSiteAdding(false);
-    setFromCityAdding(false);
-    tryFillKm(cityName, form.to_city);
+    setFromDistrictAdding(false);
   }
 
   function handleToProvince(prov: string) {
     setForm(prev => ({ ...prev, to_province: prov, to_city: '', to: '' }));
     setToSiteAdding(false);
-    setToCityAdding(false);
+    setToDistrictAdding(false);
   }
 
-  function handleToCity(cityName: string) {
-    setForm(prev => ({ ...prev, to_city: cityName, to: '' }));
+  function handleToDistrict(districtName: string) {
+    setForm(prev => ({ ...prev, to_city: districtName, to: '' }));
     setToSiteAdding(false);
-    setToCityAdding(false);
-    tryFillKm(form.from_city, cityName);
+    setToDistrictAdding(false);
   }
 
-  async function handleSaveFromCity() {
-    const name = fromNewCityName.trim();
+  async function handleSaveFromDistrict() {
+    const name = fromNewDistrictName.trim();
     if (!name) return;
     const provinceId = provinces.find(p => p.name === form.from_province)?.id;
     if (!provinceId) return;
-    await saveCity({ id: uid(), province_id: provinceId, name });
+    await saveDistrict({ id: uid(), province_id: provinceId, name });
     setForm(prev => ({ ...prev, from_city: name, from: '' }));
-    setFromCityAdding(false);
-    setFromNewCityName('');
-    tryFillKm(name, form.to_city);
+    setFromDistrictAdding(false);
+    setFromNewDistrictName('');
   }
 
-  async function handleSaveToCity() {
-    const name = toNewCityName.trim();
+  async function handleSaveToDistrict() {
+    const name = toNewDistrictName.trim();
     if (!name) return;
     const provinceId = provinces.find(p => p.name === form.to_province)?.id;
     if (!provinceId) return;
-    await saveCity({ id: uid(), province_id: provinceId, name });
+    await saveDistrict({ id: uid(), province_id: provinceId, name });
     setForm(prev => ({ ...prev, to_city: name, to: '' }));
-    setToCityAdding(false);
-    setToNewCityName('');
-    tryFillKm(form.from_city, name);
+    setToDistrictAdding(false);
+    setToNewDistrictName('');
   }
 
   async function handleSaveFromSite() {
     const name = fromNewSiteName.trim();
     if (!name) return;
-    const cityId = cities.find(c => c.name === form.from_city)?.id;
-    if (!cityId) return;
-    await saveSite({ id: uid(), city_id: cityId, name, type: fromNewSiteType });
+    const districtId = districts.find(d => d.name === form.from_city)?.id;
+    if (!districtId) return;
+    await saveSite({ id: uid(), city_id: districtId, name, type: fromNewSiteType });
     setForm(prev => ({ ...prev, from: name }));
     setFromSiteAdding(false);
     setFromNewSiteName('');
@@ -207,9 +192,9 @@ export default function TripModal({ trip, onClose }: Props) {
   async function handleSaveToSite() {
     const name = toNewSiteName.trim();
     if (!name) return;
-    const cityId = cities.find(c => c.name === form.to_city)?.id;
-    if (!cityId) return;
-    await saveSite({ id: uid(), city_id: cityId, name, type: toNewSiteType });
+    const districtId = districts.find(d => d.name === form.to_city)?.id;
+    if (!districtId) return;
+    await saveSite({ id: uid(), city_id: districtId, name, type: toNewSiteType });
     setForm(prev => ({ ...prev, to: name }));
     setToSiteAdding(false);
     setToNewSiteName('');
@@ -344,8 +329,8 @@ export default function TripModal({ trip, onClose }: Props) {
   const lpgIncome = (form.lpg_rent_total || 0) + (form.lpg_gl_pkr || 0);
   const pl = lpgIncome - totalExp;
 
-  const fromCitySites = sites.filter(s => cities.find(c => c.name === form.from_city)?.id === s.city_id);
-  const toCitySites = sites.filter(s => cities.find(c => c.name === form.to_city)?.id === s.city_id);
+  const fromDistrictSites = sites.filter(s => districts.find(d => d.name === form.from_city)?.id === s.city_id);
+  const toDistrictSites = sites.filter(s => districts.find(d => d.name === form.to_city)?.id === s.city_id);
 
   const [showErrors, setShowErrors] = useState(false);
   const errors = {
@@ -433,34 +418,34 @@ export default function TripModal({ trip, onClose }: Props) {
               </select>
             </div>
             <div className="form-group">
-              <label>From (City)</label>
-              {fromCityAdding ? (
+              <label>From (District)</label>
+              {fromDistrictAdding ? (
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <input style={{ flex: 1 }} placeholder="City name" value={fromNewCityName} onChange={ev => setFromNewCityName(ev.target.value)} onKeyDown={ev => ev.key === 'Enter' && handleSaveFromCity()} autoFocus />
-                  <button className="btn btn-sm btn-primary" onClick={handleSaveFromCity}>Add</button>
-                  <button className="btn btn-sm btn-ghost" onClick={() => { setFromCityAdding(false); setFromNewCityName(''); }}>✕</button>
+                  <input style={{ flex: 1 }} placeholder="District name" value={fromNewDistrictName} onChange={ev => setFromNewDistrictName(ev.target.value)} onKeyDown={ev => ev.key === 'Enter' && handleSaveFromDistrict()} autoFocus />
+                  <button className="btn btn-sm btn-primary" onClick={handleSaveFromDistrict}>Add</button>
+                  <button className="btn btn-sm btn-ghost" onClick={() => { setFromDistrictAdding(false); setFromNewDistrictName(''); }}>✕</button>
                 </div>
               ) : (
-                <select value={form.from_city} style={e('from_city')} onChange={ev => { if (ev.target.value === '__add_new__') setFromCityAdding(true); else handleFromCity(ev.target.value); }} disabled={!form.from_province}>
-                  <option value="">— select city —</option>
-                  {cities.filter(c => provinces.find(p => p.name === form.from_province)?.id === c.province_id).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                  {form.from_province && <option value="__add_new__">+ Add new city</option>}
+                <select value={form.from_city} style={e('from_city')} onChange={ev => { if (ev.target.value === '__add_new__') setFromDistrictAdding(true); else handleFromDistrict(ev.target.value); }} disabled={!form.from_province}>
+                  <option value="">— select district —</option>
+                  {districts.filter(d => provinces.find(p => p.name === form.from_province)?.id === d.province_id).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                  {form.from_province && <option value="__add_new__">+ Add new district</option>}
                 </select>
               )}
             </div>
             <div className="form-group">
-              <label>To (City)</label>
-              {toCityAdding ? (
+              <label>To (District)</label>
+              {toDistrictAdding ? (
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <input style={{ flex: 1 }} placeholder="City name" value={toNewCityName} onChange={ev => setToNewCityName(ev.target.value)} onKeyDown={ev => ev.key === 'Enter' && handleSaveToCity()} autoFocus />
-                  <button className="btn btn-sm btn-primary" onClick={handleSaveToCity}>Add</button>
-                  <button className="btn btn-sm btn-ghost" onClick={() => { setToCityAdding(false); setToNewCityName(''); }}>✕</button>
+                  <input style={{ flex: 1 }} placeholder="District name" value={toNewDistrictName} onChange={ev => setToNewDistrictName(ev.target.value)} onKeyDown={ev => ev.key === 'Enter' && handleSaveToDistrict()} autoFocus />
+                  <button className="btn btn-sm btn-primary" onClick={handleSaveToDistrict}>Add</button>
+                  <button className="btn btn-sm btn-ghost" onClick={() => { setToDistrictAdding(false); setToNewDistrictName(''); }}>✕</button>
                 </div>
               ) : (
-                <select value={form.to_city} style={e('to_city')} onChange={ev => { if (ev.target.value === '__add_new__') setToCityAdding(true); else handleToCity(ev.target.value); }} disabled={!form.to_province}>
-                  <option value="">— select city —</option>
-                  {cities.filter(c => provinces.find(p => p.name === form.to_province)?.id === c.province_id).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                  {form.to_province && <option value="__add_new__">+ Add new city</option>}
+                <select value={form.to_city} style={e('to_city')} onChange={ev => { if (ev.target.value === '__add_new__') setToDistrictAdding(true); else handleToDistrict(ev.target.value); }} disabled={!form.to_province}>
+                  <option value="">— select district —</option>
+                  {districts.filter(d => provinces.find(p => p.name === form.to_province)?.id === d.province_id).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                  {form.to_province && <option value="__add_new__">+ Add new district</option>}
                 </select>
               )}
             </div>
@@ -494,7 +479,7 @@ export default function TripModal({ trip, onClose }: Props) {
                   disabled={!form.from_city}
                 >
                   <option value="">— select site —</option>
-                  {fromCitySites.map(s => <option key={s.id} value={s.name}>{s.name} ({s.type})</option>)}
+                  {fromDistrictSites.map(s => <option key={s.id} value={s.name}>{s.name} ({s.type})</option>)}
                   <option value="__add_new__">+ Add new site</option>
                 </select>
               )}
@@ -529,7 +514,7 @@ export default function TripModal({ trip, onClose }: Props) {
                   disabled={!form.to_city}
                 >
                   <option value="">— select site —</option>
-                  {toCitySites.map(s => <option key={s.id} value={s.name}>{s.name} ({s.type})</option>)}
+                  {toDistrictSites.map(s => <option key={s.id} value={s.name}>{s.name} ({s.type})</option>)}
                   <option value="__add_new__">+ Add new site</option>
                 </select>
               )}

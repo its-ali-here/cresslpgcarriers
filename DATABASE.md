@@ -72,6 +72,7 @@ CREATE TABLE public.trips (
   trip_start_date date,
   trip_end_date date,
   trip_amount numeric DEFAULT 0,
+  flagged boolean DEFAULT false,
   CONSTRAINT trips_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.expenses (
@@ -82,6 +83,7 @@ CREATE TABLE public.expenses (
   amount numeric DEFAULT 0,
   ref text,
   created_at timestamp with time zone DEFAULT now(),
+  vehicle_no text,
   CONSTRAINT expenses_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.bowsers (
@@ -128,12 +130,12 @@ CREATE TABLE public.provinces (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT provinces_pkey PRIMARY KEY (id)
 );
-CREATE TABLE public.cities (
+CREATE TABLE public.districts (
   id text NOT NULL,
   province_id text NOT NULL,
   name text NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT cities_pkey PRIMARY KEY (id),
+  CONSTRAINT districts_pkey PRIMARY KEY (id),
   CONSTRAINT cities_province_id_fkey FOREIGN KEY (province_id) REFERENCES public.provinces(id)
 );
 CREATE TABLE public.sites (
@@ -143,17 +145,7 @@ CREATE TABLE public.sites (
   type text NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT sites_pkey PRIMARY KEY (id),
-  CONSTRAINT sites_city_id_fkey FOREIGN KEY (city_id) REFERENCES public.cities(id)
-);
-CREATE TABLE public.city_distances (
-  id text NOT NULL,
-  from_city_id text NOT NULL,
-  to_city_id text NOT NULL,
-  km numeric NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT city_distances_pkey PRIMARY KEY (id),
-  CONSTRAINT city_distances_from_city_id_fkey FOREIGN KEY (from_city_id) REFERENCES public.cities(id),
-  CONSTRAINT city_distances_to_city_id_fkey FOREIGN KEY (to_city_id) REFERENCES public.cities(id)
+  CONSTRAINT sites_city_id_fkey FOREIGN KEY (city_id) REFERENCES public.districts(id)
 );
 CREATE TABLE public.profiles (
   id uuid NOT NULL,

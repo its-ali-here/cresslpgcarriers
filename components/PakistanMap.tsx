@@ -15,7 +15,7 @@ function dot(color: string) {
   });
 }
 
-const CITY_COORDS: Record<string, [number, number]> = {
+const DISTRICT_COORDS: Record<string, [number, number]> = {
   'Karachi':           [24.8607, 67.0011],
   'Lahore':            [31.5204, 74.3587],
   'Islamabad':         [33.6844, 73.0479],
@@ -96,16 +96,16 @@ const CITY_COORDS: Record<string, [number, number]> = {
 };
 
 export default function PakistanMap() {
-  const { cities, provinces } = useApp();
+  const { districts, provinces } = useApp();
 
-  const markers = cities
-    .map(city => {
-      const key = Object.keys(CITY_COORDS).find(k => k.toLowerCase() === city.name.toLowerCase());
+  const markers = districts
+    .map(district => {
+      const key = Object.keys(DISTRICT_COORDS).find(k => k.toLowerCase() === district.name.toLowerCase());
       if (!key) return null;
-      const province = provinces.find(p => p.id === city.province_id);
-      return { city, province, coords: CITY_COORDS[key] };
+      const province = provinces.find(p => p.id === district.province_id);
+      return { district, province, coords: DISTRICT_COORDS[key] };
     })
-    .filter(Boolean) as { city: { id: string; name: string }; province: { name: string } | undefined; coords: [number, number] }[];
+    .filter(Boolean) as { district: { id: string; name: string }; province: { name: string } | undefined; coords: [number, number] }[];
 
   const markerIcon = dot('#2563eb');
 
@@ -123,10 +123,10 @@ export default function PakistanMap() {
         subdomains="abcd"
         maxZoom={19}
       />
-      {markers.map(({ city, province, coords }) => (
-        <Marker key={city.id} position={coords} icon={markerIcon}>
+      {markers.map(({ district, province, coords }) => (
+        <Marker key={district.id} position={coords} icon={markerIcon}>
           <Tooltip direction="top" offset={[0, -4]}>
-            <strong>{city.name}</strong>
+            <strong>{district.name}</strong>
             {province && <div style={{ fontSize: 11, color: '#666' }}>{province.name}</div>}
           </Tooltip>
         </Marker>

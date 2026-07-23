@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import type {
   Trip, Expense,
   FleetItem, Driver, Settings, AppDB,
-  Province, City, Site, CityDistance, UserProfile, ExpenseCategory, DieselSupplier, DieselPurchase,
+  Province, District, Site, UserProfile, ExpenseCategory, DieselSupplier, DieselPurchase,
 } from './types';
 import { uid } from './utils';
 
@@ -208,20 +208,20 @@ export async function deleteProvince(id: string): Promise<void> {
   if (error) throw error;
 }
 
-// ---- CITIES ----
-export async function fetchCities(): Promise<City[]> {
+// ---- DISTRICTS ----
+export async function fetchDistricts(): Promise<District[]> {
   return graceful(async () => {
-    const { data, error } = await supabase.from('cities').select('*').order('name');
+    const { data, error } = await supabase.from('districts').select('*').order('name');
     if (error) return [];
-    return (data || []) as City[];
+    return (data || []) as District[];
   });
 }
-export async function upsertCity(c: City): Promise<void> {
-  const { error } = await supabase.from('cities').upsert(c);
+export async function upsertDistrict(d: District): Promise<void> {
+  const { error } = await supabase.from('districts').upsert(d);
   if (error) throw error;
 }
-export async function deleteCity(id: string): Promise<void> {
-  const { error } = await supabase.from('cities').delete().eq('id', id);
+export async function deleteDistrict(id: string): Promise<void> {
+  const { error } = await supabase.from('districts').delete().eq('id', id);
   if (error) throw error;
 }
 
@@ -276,38 +276,21 @@ export async function deleteDieselSupplier(id: string): Promise<void> {
   if (error) throw error;
 }
 
-// ---- CITY DISTANCES ----
-export async function fetchCityDistances(): Promise<CityDistance[]> {
-  return graceful(async () => {
-    const { data, error } = await supabase.from('city_distances').select('*');
-    if (error) return [];
-    return (data || []) as CityDistance[];
-  });
-}
-export async function upsertCityDistance(d: CityDistance): Promise<void> {
-  const { error } = await supabase.from('city_distances').upsert(d);
-  if (error) throw error;
-}
-export async function deleteCityDistance(id: string): Promise<void> {
-  const { error } = await supabase.from('city_distances').delete().eq('id', id);
-  if (error) throw error;
-}
-
 // ---- FETCH ALL ----
 export async function fetchAll(): Promise<AppDB> {
   const [
     trips, expenses,
     fleet, drivers, settings,
-    provinces, cities, sites, cityDistances, expenseCategories, dieselSuppliers,
+    provinces, districts, sites, expenseCategories, dieselSuppliers,
   ] = await Promise.all([
     fetchTrips(), fetchExpenses(),
     fetchFleet(), fetchDrivers(), fetchSettings(),
-    fetchProvinces(), fetchCities(), fetchSites(), fetchCityDistances(),
+    fetchProvinces(), fetchDistricts(), fetchSites(),
     fetchExpenseCategories(), fetchDieselSuppliers(),
   ]);
   return {
     trips, expenses,
     fleet, drivers, settings,
-    provinces, cities, sites, cityDistances, expenseCategories, dieselSuppliers,
+    provinces, districts, sites, expenseCategories, dieselSuppliers,
   };
 }

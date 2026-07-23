@@ -4,7 +4,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import type {
   AppDB, Trip, Expense,
   FleetItem, Driver, Settings,
-  Province, City, Site, CityDistance, ExpenseCategory, DieselSupplier,
+  Province, District, Site, ExpenseCategory, DieselSupplier,
 } from '@/lib/types';
 import * as db from '@/lib/db';
 
@@ -37,15 +37,12 @@ interface AppContextValue extends AppDB {
   // Provinces
   saveProvince: (p: Province) => Promise<void>;
   deleteProvince: (id: string) => Promise<void>;
-  // Cities
-  saveCity: (c: City) => Promise<void>;
-  deleteCity: (id: string) => Promise<void>;
+  // Districts
+  saveDistrict: (d: District) => Promise<void>;
+  deleteDistrict: (id: string) => Promise<void>;
   // Sites
   saveSite: (s: Site) => Promise<void>;
   deleteSite: (id: string) => Promise<void>;
-  // City distances
-  saveCityDistance: (d: CityDistance) => Promise<void>;
-  deleteCityDistance: (id: string) => Promise<void>;
   // Expense categories
   saveExpenseCategory: (cat: ExpenseCategory) => Promise<void>;
   deleteExpenseCategory: (id: string) => Promise<void>;
@@ -78,7 +75,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     trips: [], expenses: [],
     fleet: [], drivers: [],
     settings: { company: 'CRESS LPG CARRIERS', yard: '', driverDaily: 0, helperDaily: 0, tripDays: 0, dieselBench: 2.6 },
-    provinces: [], cities: [], sites: [], cityDistances: [], expenseCategories: [], dieselSuppliers: [],
+    provinces: [], districts: [], sites: [], expenseCategories: [], dieselSuppliers: [],
   });
 
   useEffect(() => {
@@ -304,28 +301,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setState(prev => ({
       ...prev,
       provinces: prev.provinces.filter(p => p.id !== id),
-      cities: prev.cities.filter(c => c.province_id !== id),
-      sites: prev.sites.filter(s => !prev.cities.filter(c => c.province_id === id).map(c => c.id).includes(s.city_id)),
+      districts: prev.districts.filter(d => d.province_id !== id),
+      sites: prev.sites.filter(s => !prev.districts.filter(d => d.province_id === id).map(d => d.id).includes(s.city_id)),
     }));
   }, []);
 
-  // CITIES
-  const saveCity = useCallback(async (c: City) => {
-    await db.upsertCity(c);
+  // DISTRICTS
+  const saveDistrict = useCallback(async (d: District) => {
+    await db.upsertDistrict(d);
     setState(prev => {
-      const idx = prev.cities.findIndex(x => x.id === c.id);
-      const cities = idx >= 0 ? prev.cities.map(x => x.id === c.id ? c : x) : [...prev.cities, c];
-      return { ...prev, cities };
+      const idx = prev.districts.findIndex(x => x.id === d.id);
+      const districts = idx >= 0 ? prev.districts.map(x => x.id === d.id ? d : x) : [...prev.districts, d];
+      return { ...prev, districts };
     });
   }, []);
 
-  const deleteCity = useCallback(async (id: string) => {
-    await db.deleteCity(id);
+  const deleteDistrict = useCallback(async (id: string) => {
+    await db.deleteDistrict(id);
     setState(prev => ({
       ...prev,
-      cities: prev.cities.filter(c => c.id !== id),
+      districts: prev.districts.filter(d => d.id !== id),
       sites: prev.sites.filter(s => s.city_id !== id),
-      cityDistances: prev.cityDistances.filter(d => d.from_city_id !== id && d.to_city_id !== id),
     }));
   }, []);
 
@@ -342,21 +338,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const deleteSite = useCallback(async (id: string) => {
     await db.deleteSite(id);
     setState(prev => ({ ...prev, sites: prev.sites.filter(s => s.id !== id) }));
-  }, []);
-
-  // CITY DISTANCES
-  const saveCityDistance = useCallback(async (d: CityDistance) => {
-    await db.upsertCityDistance(d);
-    setState(prev => {
-      const idx = prev.cityDistances.findIndex(x => x.id === d.id);
-      const cityDistances = idx >= 0 ? prev.cityDistances.map(x => x.id === d.id ? d : x) : [...prev.cityDistances, d];
-      return { ...prev, cityDistances };
-    });
-  }, []);
-
-  const deleteCityDistance = useCallback(async (id: string) => {
-    await db.deleteCityDistance(id);
-    setState(prev => ({ ...prev, cityDistances: prev.cityDistances.filter(d => d.id !== id) }));
   }, []);
 
   // EXPENSE CATEGORIES
@@ -398,9 +379,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       saveDriver, deleteDriver, approveDriver, approvePendingDriverEdit, rejectPendingDriverEdit,
       updateSettings,
       saveProvince, deleteProvince,
-      saveCity, deleteCity,
+      saveDistrict, deleteDistrict,
       saveSite, deleteSite,
-      saveCityDistance, deleteCityDistance,
       saveExpenseCategory, deleteExpenseCategory,
       saveDieselSupplier, deleteDieselSupplier,
     }}>

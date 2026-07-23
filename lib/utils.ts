@@ -21,6 +21,19 @@ export function daysLeft(d: string | undefined | null): number | null {
   return Math.ceil((new Date(d).getTime() - new Date().getTime()) / 864e5);
 }
 
+// Windowed page list so many pages don't overflow the pager (e.g. 1 … 4 5 6 … 42)
+export function pageWindow(current: number, total: number): (number | '...')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | '...')[] = [1];
+  const lo = Math.max(2, current - 1);
+  const hi = Math.min(total - 1, current + 1);
+  if (lo > 2) pages.push('...');
+  for (let i = lo; i <= hi; i++) pages.push(i);
+  if (hi < total - 1) pages.push('...');
+  pages.push(total);
+  return pages;
+}
+
 // Moves focus to the nearest field in the arrow direction (geometry-based, like a spreadsheet)
 // and prevents the browser's native arrow behavior on number inputs / selects.
 export function arrowNavigate(e: React.KeyboardEvent, container: HTMLElement) {

@@ -34,7 +34,7 @@ export interface Province {
   name: string;
 }
 
-export interface City {
+export interface District {
   id: string;
   province_id: string;
   name: string;
@@ -48,13 +48,6 @@ export interface Site {
   city_id: string;
   name: string;
   type: SiteType;
-}
-
-export interface CityDistance {
-  id: string;
-  from_city_id: string;
-  to_city_id: string;
-  km: number;
 }
 
 export interface Trip {
@@ -130,13 +123,29 @@ export interface Trip {
 
 
 
+export const EXPENSE_CATEGORIES = [
+  'Tyre replacement',
+  'Vehicle maintenance',
+  'Driver salary',
+  'Operations staff salary',
+  'Utilities',
+  'Rent',
+  'Parts purchasing',
+  'Miscellaneous',
+] as const;
+export type ExpenseCategoryName = typeof EXPENSE_CATEGORIES[number];
+
+export const VEHICLE_LINKED_CATEGORIES: readonly ExpenseCategoryName[] =
+  ['Tyre replacement', 'Vehicle maintenance', 'Driver salary'];
+
 export interface Expense {
   id: string;
   date: string;
-  cat: string;
+  cat: ExpenseCategoryName;
   description: string;
   amount: number;
   ref: string;
+  vehicle_no?: string;
 }
 
 
@@ -186,9 +195,8 @@ export interface AppDB {
   drivers: Driver[];
   settings: Settings;
   provinces: Province[];
-  cities: City[];
+  districts: District[];
   sites: Site[];
-  cityDistances: CityDistance[];
   expenseCategories: ExpenseCategory[];
   dieselSuppliers: DieselSupplier[];
 }

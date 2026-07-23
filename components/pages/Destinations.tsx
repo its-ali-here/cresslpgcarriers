@@ -12,32 +12,32 @@ interface InlineEdit { id: string; value: string; extra?: string; }
 
 export default function Destinations() {
   const {
-    provinces, cities, sites,
+    provinces, districts, sites,
     saveProvince, deleteProvince,
-    saveCity, deleteCity,
+    saveDistrict, deleteDistrict,
     saveSite, deleteSite,
   } = useApp();
 
   const { role } = useUser();
   const isAdmin = role === 'admin';
 
-  // expanded state for provinces and cities
+  // expanded state for provinces and districts
   const [expandedProvinces, setExpandedProvinces] = useState<Set<string>>(new Set());
-  const [expandedCities, setExpandedCities] = useState<Set<string>>(new Set());
+  const [expandedDistricts, setExpandedDistricts] = useState<Set<string>>(new Set());
 
   // inline add/edit state
   const [addingProvince, setAddingProvince] = useState(false);
   const [newProvinceName, setNewProvinceName] = useState('');
 
-  const [addingCityFor, setAddingCityFor] = useState<string | null>(null); // province_id
-  const [newCityName, setNewCityName] = useState('');
+  const [addingDistrictFor, setAddingDistrictFor] = useState<string | null>(null); // province_id
+  const [newDistrictName, setNewDistrictName] = useState('');
 
   const [addingSiteFor, setAddingSiteFor] = useState<string | null>(null); // city_id
   const [newSiteName, setNewSiteName] = useState('');
   const [newSiteType, setNewSiteType] = useState<SiteType>('Plant');
 
   const [editProvince, setEditProvince] = useState<InlineEdit | null>(null);
-  const [editCity, setEditCity] = useState<InlineEdit | null>(null);
+  const [editDistrict, setEditDistrict] = useState<InlineEdit | null>(null);
   const [editSite, setEditSite] = useState<InlineEdit | null>(null);
 
   function toggleProvince(id: string) {
@@ -48,8 +48,8 @@ export default function Destinations() {
     });
   }
 
-  function toggleCity(id: string) {
-    setExpandedCities(prev => {
+  function toggleDistrict(id: string) {
+    setExpandedDistricts(prev => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
@@ -72,43 +72,43 @@ export default function Destinations() {
   }
 
   async function handleDeleteProvince(id: string) {
-    if (!confirm('Delete this province and all its cities and sites?')) return;
+    if (!confirm('Delete this province and all its districts and sites?')) return;
     await deleteProvince(id);
     setExpandedProvinces(prev => { const n = new Set(prev); n.delete(id); return n; });
   }
 
-  // ── City actions ──────────────────────────────────────────────────────────
-  async function handleAddCity(provinceId: string) {
-    const name = newCityName.trim();
+  // ── District actions ──────────────────────────────────────────────────────
+  async function handleAddDistrict(provinceId: string) {
+    const name = newDistrictName.trim();
     if (!name) return;
-    await saveCity({ id: uid(), province_id: provinceId, name });
-    setNewCityName('');
-    setAddingCityFor(null);
+    await saveDistrict({ id: uid(), province_id: provinceId, name });
+    setNewDistrictName('');
+    setAddingDistrictFor(null);
     setExpandedProvinces(prev => new Set([...prev, provinceId]));
   }
 
-  async function handleEditCity() {
-    if (!editCity || !editCity.value.trim()) return;
-    const city = cities.find(c => c.id === editCity.id)!;
-    await saveCity({ ...city, name: editCity.value.trim() });
-    setEditCity(null);
+  async function handleEditDistrict() {
+    if (!editDistrict || !editDistrict.value.trim()) return;
+    const district = districts.find(d => d.id === editDistrict.id)!;
+    await saveDistrict({ ...district, name: editDistrict.value.trim() });
+    setEditDistrict(null);
   }
 
-  async function handleDeleteCity(id: string) {
-    if (!confirm('Delete this city and all its sites?')) return;
-    await deleteCity(id);
-    setExpandedCities(prev => { const n = new Set(prev); n.delete(id); return n; });
+  async function handleDeleteDistrict(id: string) {
+    if (!confirm('Delete this district and all its sites?')) return;
+    await deleteDistrict(id);
+    setExpandedDistricts(prev => { const n = new Set(prev); n.delete(id); return n; });
   }
 
   // ── Site actions ──────────────────────────────────────────────────────────
-  async function handleAddSite(cityId: string) {
+  async function handleAddSite(districtId: string) {
     const name = newSiteName.trim();
     if (!name) return;
-    await saveSite({ id: uid(), city_id: cityId, name, type: newSiteType });
+    await saveSite({ id: uid(), city_id: districtId, name, type: newSiteType });
     setNewSiteName('');
     setNewSiteType('Plant');
     setAddingSiteFor(null);
-    setExpandedCities(prev => new Set([...prev, cityId]));
+    setExpandedDistricts(prev => new Set([...prev, districtId]));
   }
 
   async function handleEditSite() {
@@ -159,7 +159,7 @@ export default function Destinations() {
           )}
 
           {provinces.map(province => {
-            const provinceCities = cities.filter(c => c.province_id === province.id);
+            const provinceDistricts = districts.filter(d => d.province_id === province.id);
             const isExpanded = expandedProvinces.has(province.id);
 
             return (
@@ -179,7 +179,7 @@ export default function Destinations() {
                   ) : (
                     <span style={{ flex: 1, fontWeight: 600 }}>{province.name}</span>
                   )}
-                  <span style={{ fontSize: 11, color: 'var(--text3)' }}>{provinceCities.length} {provinceCities.length === 1 ? 'city' : 'cities'}</span>
+                  <span style={{ fontSize: 11, color: 'var(--text3)' }}>{provinceDistricts.length} {provinceDistricts.length === 1 ? 'district' : 'districts'}</span>
                   {isAdmin && (
                     <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
                       {editProvince?.id === province.id ? (
@@ -189,7 +189,7 @@ export default function Destinations() {
                         </>
                       ) : (
                         <>
-                          <button className="btn btn-ghost btn-sm" onClick={() => { setAddingCityFor(province.id); setNewCityName(''); setExpandedProvinces(prev => new Set([...prev, province.id])); }}>+ City</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => { setAddingDistrictFor(province.id); setNewDistrictName(''); setExpandedProvinces(prev => new Set([...prev, province.id])); }}>+ District</button>
                           <button className="btn btn-ghost btn-sm" onClick={() => setEditProvince({ id: province.id, value: province.name })}>✏</button>
                           <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDeleteProvince(province.id)}>✕</button>
                         </>
@@ -198,63 +198,63 @@ export default function Destinations() {
                   )}
                 </div>
 
-                {/* Cities (expanded) */}
+                {/* Districts (expanded) */}
                 {isExpanded && (
                   <div style={{ marginLeft: 24, marginTop: 4 }}>
-                    {/* Add city inline */}
-                    {addingCityFor === province.id && (
+                    {/* Add district inline */}
+                    {addingDistrictFor === province.id && (
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, padding: '8px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6 }}>
                         <input
                           autoFocus
-                          value={newCityName}
-                          onChange={e => setNewCityName(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter') handleAddCity(province.id); if (e.key === 'Escape') setAddingCityFor(null); }}
-                          placeholder="City name"
+                          value={newDistrictName}
+                          onChange={e => setNewDistrictName(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') handleAddDistrict(province.id); if (e.key === 'Escape') setAddingDistrictFor(null); }}
+                          placeholder="District name"
                           style={{ flex: 1 }}
                         />
-                        <button className="btn btn-sm btn-primary" onClick={() => handleAddCity(province.id)}>Save</button>
-                        <button className="btn btn-sm btn-ghost" onClick={() => setAddingCityFor(null)}>Cancel</button>
+                        <button className="btn btn-sm btn-primary" onClick={() => handleAddDistrict(province.id)}>Save</button>
+                        <button className="btn btn-sm btn-ghost" onClick={() => setAddingDistrictFor(null)}>Cancel</button>
                       </div>
                     )}
 
-                    {provinceCities.length === 0 && addingCityFor !== province.id && (
-                      <div style={{ padding: '8px 12px', color: 'var(--text3)', fontSize: 12 }}>No cities — click + City to add one</div>
+                    {provinceDistricts.length === 0 && addingDistrictFor !== province.id && (
+                      <div style={{ padding: '8px 12px', color: 'var(--text3)', fontSize: 12 }}>No districts — click + District to add one</div>
                     )}
 
-                    {provinceCities.map(city => {
-                      const citySites = sites.filter(s => s.city_id === city.id);
-                      const isCityExpanded = expandedCities.has(city.id);
+                    {provinceDistricts.map(district => {
+                      const districtSites = sites.filter(s => s.city_id === district.id);
+                      const isDistrictExpanded = expandedDistricts.has(district.id);
 
                       return (
-                        <div key={city.id} style={{ marginBottom: 4 }}>
-                          {/* City row */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer' }} onClick={() => toggleCity(city.id)}>
-                            <span style={{ fontSize: 11, color: 'var(--text3)', userSelect: 'none' }}>{isCityExpanded ? '▼' : '▶'}</span>
-                            {editCity?.id === city.id ? (
+                        <div key={district.id} style={{ marginBottom: 4 }}>
+                          {/* District row */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer' }} onClick={() => toggleDistrict(district.id)}>
+                            <span style={{ fontSize: 11, color: 'var(--text3)', userSelect: 'none' }}>{isDistrictExpanded ? '▼' : '▶'}</span>
+                            {editDistrict?.id === district.id ? (
                               <input
                                 autoFocus
-                                value={editCity.value}
-                                onChange={e => setEditCity({ ...editCity, value: e.target.value })}
-                                onKeyDown={e => { if (e.key === 'Enter') handleEditCity(); if (e.key === 'Escape') setEditCity(null); }}
+                                value={editDistrict.value}
+                                onChange={e => setEditDistrict({ ...editDistrict, value: e.target.value })}
+                                onKeyDown={e => { if (e.key === 'Enter') handleEditDistrict(); if (e.key === 'Escape') setEditDistrict(null); }}
                                 onClick={e => e.stopPropagation()}
                                 style={{ flex: 1 }}
                               />
                             ) : (
-                              <span style={{ flex: 1, fontWeight: 500 }}>{city.name}</span>
+                              <span style={{ flex: 1, fontWeight: 500 }}>{district.name}</span>
                             )}
-                            <span style={{ fontSize: 11, color: 'var(--text3)' }}>{citySites.length} {citySites.length === 1 ? 'site' : 'sites'}</span>
+                            <span style={{ fontSize: 11, color: 'var(--text3)' }}>{districtSites.length} {districtSites.length === 1 ? 'site' : 'sites'}</span>
                             {isAdmin && (
                               <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
-                                {editCity?.id === city.id ? (
+                                {editDistrict?.id === district.id ? (
                                   <>
-                                    <button className="btn btn-sm btn-primary" onClick={handleEditCity}>Save</button>
-                                    <button className="btn btn-sm btn-ghost" onClick={() => setEditCity(null)}>Cancel</button>
+                                    <button className="btn btn-sm btn-primary" onClick={handleEditDistrict}>Save</button>
+                                    <button className="btn btn-sm btn-ghost" onClick={() => setEditDistrict(null)}>Cancel</button>
                                   </>
                                 ) : (
                                   <>
-                                    <button className="btn btn-ghost btn-sm" onClick={() => { setAddingSiteFor(city.id); setNewSiteName(''); setNewSiteType('Plant'); setExpandedCities(prev => new Set([...prev, city.id])); }}>+ Site</button>
-                                    <button className="btn btn-ghost btn-sm" onClick={() => setEditCity({ id: city.id, value: city.name })}>✏</button>
-                                    <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDeleteCity(city.id)}>✕</button>
+                                    <button className="btn btn-ghost btn-sm" onClick={() => { setAddingSiteFor(district.id); setNewSiteName(''); setNewSiteType('Plant'); setExpandedDistricts(prev => new Set([...prev, district.id])); }}>+ Site</button>
+                                    <button className="btn btn-ghost btn-sm" onClick={() => setEditDistrict({ id: district.id, value: district.name })}>✏</button>
+                                    <button className="btn btn-ghost btn-sm btn-danger" onClick={() => handleDeleteDistrict(district.id)}>✕</button>
                                   </>
                                 )}
                               </div>
@@ -262,32 +262,32 @@ export default function Destinations() {
                           </div>
 
                           {/* Sites (expanded) */}
-                          {isCityExpanded && (
+                          {isDistrictExpanded && (
                             <div style={{ marginLeft: 24, marginTop: 4 }}>
                               {/* Add site inline */}
-                              {addingSiteFor === city.id && (
+                              {addingSiteFor === district.id && (
                                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, padding: '8px 12px', background: 'var(--surface)', border: '1px dashed var(--border)', borderRadius: 6 }}>
                                   <input
                                     autoFocus
                                     value={newSiteName}
                                     onChange={e => setNewSiteName(e.target.value)}
-                                    onKeyDown={e => { if (e.key === 'Enter') handleAddSite(city.id); if (e.key === 'Escape') setAddingSiteFor(null); }}
+                                    onKeyDown={e => { if (e.key === 'Enter') handleAddSite(district.id); if (e.key === 'Escape') setAddingSiteFor(null); }}
                                     placeholder="Site name"
                                     style={{ flex: 1 }}
                                   />
                                   <select value={newSiteType} onChange={e => setNewSiteType(e.target.value as SiteType)} style={{ width: 110 }}>
                                     {SITE_TYPES.map(t => <option key={t}>{t}</option>)}
                                   </select>
-                                  <button className="btn btn-sm btn-primary" onClick={() => handleAddSite(city.id)}>Save</button>
+                                  <button className="btn btn-sm btn-primary" onClick={() => handleAddSite(district.id)}>Save</button>
                                   <button className="btn btn-sm btn-ghost" onClick={() => setAddingSiteFor(null)}>Cancel</button>
                                 </div>
                               )}
 
-                              {citySites.length === 0 && addingSiteFor !== city.id && (
+                              {districtSites.length === 0 && addingSiteFor !== district.id && (
                                 <div style={{ padding: '6px 12px', color: 'var(--text3)', fontSize: 12 }}>No sites — click + Site to add one</div>
                               )}
 
-                              {citySites.map(site => (
+                              {districtSites.map(site => (
                                 <div key={site.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', marginBottom: 3, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6 }}>
                                   {editSite?.id === site.id ? (
                                     <>

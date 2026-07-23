@@ -44,7 +44,7 @@ function viewPDF(
 
 export default function Reports() {
   const [tab, setTab] = useState<ReportTab>('summary');
-  const { trips, expenses, fleet, settings } = useApp();
+  const { trips, expenses, settings } = useApp();
 
   const yearStart = new Date().getFullYear() + '-01-01';
   const [dateFrom, setDateFrom] = useState(yearStart);
@@ -83,7 +83,7 @@ export default function Reports() {
         ))}
       </div>
 
-      {tab === 'summary'    && <SummaryReport trips={filteredTrips} expenses={expenses} fleet={fleet} company={company} dateRange={dateRange} dateFrom={dateFrom} dateTo={dateTo} />}
+      {tab === 'summary'    && <SummaryReport trips={filteredTrips} expenses={expenses} company={company} dateRange={dateRange} dateFrom={dateFrom} dateTo={dateTo} />}
       {tab === 'tripwise'   && <TripwiseReport trips={filteredTrips} company={company} dateRange={dateRange} />}
       {tab === 'bowserwise' && <BowserwiseReport trips={filteredTrips} company={company} dateRange={dateRange} />}
       {tab === 'monthwise'  && <MonthwiseReport trips={filteredTrips} company={company} dateRange={dateRange} />}
@@ -93,10 +93,9 @@ export default function Reports() {
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
 
-function SummaryReport({ trips, expenses, fleet, company, dateRange, dateFrom, dateTo }: {
+function SummaryReport({ trips, expenses, company, dateRange, dateFrom, dateTo }: {
   trips: Trip[];
   expenses: ReturnType<typeof useApp>['expenses'];
-  fleet: ReturnType<typeof useApp>['fleet'];
   company: string;
   dateRange: string;
   dateFrom: string;
@@ -111,7 +110,7 @@ function SummaryReport({ trips, expenses, fleet, company, dateRange, dateFrom, d
   const dieselCost     = trips.reduce((s, t) => s + (t.diesel_cost || 0), 0);
   const totalKm        = trips.filter(t => t.diesel_consumed > 0).reduce((s, t) => s + (t.km || 0), 0);
   const dieselAvg       = dieselConsumed > 0 ? totalKm / dieselConsumed : 0;
-  const activeFleet     = fleet.filter(f => f.status === 'Running in fleet').length;
+  const totalDistance  = trips.reduce((s, t) => s + (t.km || 0), 0);
 
   function handlePDF() {
     const head = [['Metric', 'Value']];
@@ -123,7 +122,7 @@ function SummaryReport({ trips, expenses, fleet, company, dateRange, dateFrom, d
       ['Total diesel consumed', `${dieselConsumed.toLocaleString()} ltr`],
       ['Total diesel cost', rs(dieselCost)],
       ['Total diesel average', dieselAvg ? `${dieselAvg.toFixed(2)} km/ltr` : '—'],
-      ['Fleet size', `${fleet.length} (${activeFleet} active)`],
+      ['Total distance travelled', `${totalDistance.toLocaleString()} km`],
     ];
     viewPDF(company, 'Summary', dateRange, head, body);
   }
@@ -143,7 +142,7 @@ function SummaryReport({ trips, expenses, fleet, company, dateRange, dateFrom, d
         <div className="metric"><div className="metric-label">Total diesel consumed</div><div className="metric-value">{dieselConsumed.toLocaleString()} ltr</div></div>
         <div className="metric"><div className="metric-label">Total diesel cost</div><div className="metric-value red">{rs(dieselCost)}</div></div>
         <div className="metric"><div className="metric-label">Total diesel average</div><div className="metric-value gold">{dieselAvg ? dieselAvg.toFixed(2) : '—'} km/ltr</div></div>
-        <div className="metric"><div className="metric-label">Fleet size</div><div className="metric-value">{fleet.length}</div><div className="metric-sub">{activeFleet} active</div></div>
+        <div className="metric"><div className="metric-label">Total distance travelled</div><div className="metric-value">{totalDistance.toLocaleString()} km</div></div>
       </div>
     </>
   );
@@ -153,14 +152,13 @@ function SummaryReport({ trips, expenses, fleet, company, dateRange, dateFrom, d
 
 function TripwiseReport({ trips, company, dateRange }: { trips: Trip[]; company: string; dateRange: string }) {
   function handlePDF() {
-    const head = [['Trip #', 'Load Date', 'Vehicle', 'Route', 'LPG Lifted', 'LPG Delivered', 'Gain/Loss', 'Rent/MT', 'Rent Total', 'Act. Days', 'Total Exp', 'Net P/L']];
+    const head = [['Trip #', 'Load Date', 'Vehicle', 'Route', 'LPG Lifted', 'Gain/Loss (kg)', 'Rent/MT', 'Rent Total', 'Act. Days', 'Total Exp', 'Net P/L']];
     const body = trips.map(t => [
       t.no || '—',
       fmtDate(t.load_date),
       t.vehicle || '—',
       `${t.from_city || ''}${t.from_city && t.to_city ? ' → ' : ''}${t.to_city || ''}`,
       fmtNum(t.lifted),
-      fmtNum(t.delivered),
       t.lpg_diff || '0',
       rs(t.lpg_rent_mt),
       rs(t.lpg_rent_total),
@@ -181,14 +179,14 @@ function TripwiseReport({ trips, company, dateRange }: { trips: Trip[]; company:
           <thead>
             <tr>
               <th>Trip #</th><th>Load Date</th><th>Vehicle</th><th>Route</th>
-              <th>LPG Lifted</th><th>LPG Delivered</th><th>Gain/Loss</th>
+              <th>LPG Lifted</th><th>Gain/Loss (kg)</th>
               <th>Rent/MT</th><th>Rent Total</th><th>Act. Days</th>
               <th>Total Exp</th><th>Net P/L</th>
             </tr>
           </thead>
           <tbody>
             {trips.length === 0 ? (
-              <tr><td colSpan={12}><div className="empty">No trips in this period.</div></td></tr>
+              <tr><td colSpan={11}><div className="empty">No trips in this period.</div></td></tr>
             ) : trips.map(t => {
               const diff = parseFloat(t.lpg_diff);
               return (
@@ -198,7 +196,6 @@ function TripwiseReport({ trips, company, dateRange }: { trips: Trip[]; company:
                   <td className="mono">{t.vehicle || '—'}</td>
                   <td style={{ fontSize: 11 }}>{t.from_city || ''}{t.from_city && t.to_city ? ' → ' : ''}{t.to_city || ''}</td>
                   <td className="mono">{t.lifted ? fmtNum(t.lifted) : ''}</td>
-                  <td className="mono">{t.delivered ? fmtNum(t.delivered) : ''}</td>
                   <td className="mono" style={{ color: diff > 0 ? 'var(--green)' : diff < 0 ? 'var(--red)' : undefined }}>{t.lpg_diff || '0'}</td>
                   <td className="mono">{t.lpg_rent_mt ? rs(t.lpg_rent_mt) : ''}</td>
                   <td className="mono">{t.lpg_rent_total ? rs(t.lpg_rent_total) : ''}</td>
@@ -218,19 +215,19 @@ function TripwiseReport({ trips, company, dateRange }: { trips: Trip[]; company:
 // ─── Bowserwise ───────────────────────────────────────────────────────────────
 
 function BowserwiseReport({ trips, company, dateRange }: { trips: Trip[]; company: string; dateRange: string }) {
-  type Row = { vehicle: string; count: number; km: number; lifted: number; delivered: number; rent: number; exp: number; pl: number; avgKmLtr: number; riskShare: number | null };
+  type Row = { vehicle: string; count: number; km: number; lifted: number; gainLoss: number; rent: number; exp: number; pl: number; avgKmLtr: number; riskShare: number | null };
 
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
 
   const map = new Map<string, Row>();
   for (const t of trips) {
     const v = t.vehicle || '(unknown)';
-    if (!map.has(v)) map.set(v, { vehicle: v, count: 0, km: 0, lifted: 0, delivered: 0, rent: 0, exp: 0, pl: 0, avgKmLtr: 0, riskShare: null });
+    if (!map.has(v)) map.set(v, { vehicle: v, count: 0, km: 0, lifted: 0, gainLoss: 0, rent: 0, exp: 0, pl: 0, avgKmLtr: 0, riskShare: null });
     const r = map.get(v)!;
     r.count++;
     r.km       += t.km || 0;
     r.lifted   += t.lifted || 0;
-    r.delivered += t.delivered || 0;
+    r.gainLoss += (t.delivered || 0) - (t.lifted || 0);
     r.rent     += t.lpg_rent_total || 0;
     r.exp      += t.total_exp || 0;
     r.pl       += t.net_pl || 0;
@@ -250,9 +247,9 @@ function BowserwiseReport({ trips, company, dateRange }: { trips: Trip[]; compan
     : [];
 
   function handlePDF() {
-    const head = [['Vehicle', '# Trips', 'Total KM', 'LPG Lifted (kg)', 'LPG Delivered (kg)', 'Total Rent', 'Total Exp', 'Net P/L', 'Avg km/ltr', 'Risk %']];
+    const head = [['Vehicle', '# Trips', 'Total KM', 'LPG Lifted (kg)', 'Gain/Loss (kg)', 'Total Rent', 'Total Exp', 'Net P/L', 'Avg km/ltr', 'Risk %']];
     const body = rows.map(r => [
-      r.vehicle, r.count, fmtNum(r.km), fmtNum(r.lifted), fmtNum(r.delivered),
+      r.vehicle, r.count, fmtNum(r.km), fmtNum(r.lifted), r.gainLoss ? (r.gainLoss > 0 ? '+' + fmtNum(r.gainLoss) : fmtNum(r.gainLoss)) : '0',
       rs(r.rent), rs(r.exp), rs(r.pl),
       r.avgKmLtr ? r.avgKmLtr.toFixed(2) : '—',
       r.riskShare !== null ? `${Math.round(r.riskShare * 100)}%` : '—',
@@ -262,13 +259,13 @@ function BowserwiseReport({ trips, company, dateRange }: { trips: Trip[]; compan
 
   function handleVehiclePDF() {
     if (!selectedVehicle) return;
-    const head = [['Trip #', 'Load Date', 'Route', 'LPG Lifted', 'LPG Delivered', 'Rent Total', 'Act. Days', 'Total Exp', 'Net P/L']];
+    const head = [['Trip #', 'Load Date', 'Route', 'LPG Lifted', 'Gain/Loss (kg)', 'Rent Total', 'Act. Days', 'Total Exp', 'Net P/L']];
     const body = vehicleTrips.map(t => [
       t.no || '—',
       fmtDate(t.load_date),
       `${t.from_city || ''}${t.from_city && t.to_city ? ' → ' : ''}${t.to_city || ''}`,
       fmtNum(t.lifted),
-      fmtNum(t.delivered),
+      t.lpg_diff || '0',
       rs(t.lpg_rent_total),
       t.act_days || '—',
       rs(t.total_exp),
@@ -287,7 +284,7 @@ function BowserwiseReport({ trips, company, dateRange }: { trips: Trip[]; compan
           <thead>
             <tr>
               <th>Vehicle</th><th># Trips</th><th>Total KM</th><th>LPG Lifted (kg)</th>
-              <th>LPG Delivered (kg)</th><th>Total Rent</th><th>Total Exp</th><th>Net P/L</th><th>Avg km/ltr</th><th>Risk %</th>
+              <th>Gain/Loss (kg)</th><th>Total Rent</th><th>Total Exp</th><th>Net P/L</th><th>Avg km/ltr</th><th>Risk %</th>
             </tr>
           </thead>
           <tbody>
@@ -303,7 +300,7 @@ function BowserwiseReport({ trips, company, dateRange }: { trips: Trip[]; compan
                 <td className="mono">{r.count}</td>
                 <td className="mono">{r.km ? fmtNum(r.km) + ' km' : '—'}</td>
                 <td className="mono">{fmtNum(r.lifted)}</td>
-                <td className="mono">{fmtNum(r.delivered)}</td>
+                <td className="mono" style={{ color: r.gainLoss > 0 ? 'var(--green)' : r.gainLoss < 0 ? 'var(--red)' : undefined }}>{r.gainLoss ? (r.gainLoss > 0 ? '+' + fmtNum(r.gainLoss) : fmtNum(r.gainLoss)) : '0'}</td>
                 <td className="mono">{rs(r.rent)}</td>
                 <td className="mono" style={{ color: 'var(--red)' }}>{rs(r.exp)}</td>
                 <td className="mono" style={{ color: r.pl >= 0 ? 'var(--green)' : 'var(--red)' }}>{rs(r.pl)}</td>
@@ -329,25 +326,28 @@ function BowserwiseReport({ trips, company, dateRange }: { trips: Trip[]; compan
               <thead>
                 <tr>
                   <th>Trip #</th><th>Load Date</th><th>Route</th><th>LPG Lifted</th>
-                  <th>LPG Delivered</th><th>Rent Total</th><th>Act. Days</th><th>Total Exp</th><th>Net P/L</th>
+                  <th>Gain/Loss (kg)</th><th>Rent Total</th><th>Act. Days</th><th>Total Exp</th><th>Net P/L</th>
                 </tr>
               </thead>
               <tbody>
                 {vehicleTrips.length === 0 ? (
                   <tr><td colSpan={9}><div className="empty">No trips for this vehicle in this period.</div></td></tr>
-                ) : vehicleTrips.map(t => (
+                ) : vehicleTrips.map(t => {
+                  const diff = parseFloat(t.lpg_diff);
+                  return (
                   <tr key={t.id}>
                     <td className="mono">{t.no || '—'}</td>
                     <td>{fmtDate(t.load_date)}</td>
                     <td style={{ fontSize: 11 }}>{t.from_city || ''}{t.from_city && t.to_city ? ' → ' : ''}{t.to_city || ''}</td>
                     <td className="mono">{fmtNum(t.lifted)}</td>
-                    <td className="mono">{fmtNum(t.delivered)}</td>
+                    <td className="mono" style={{ color: diff > 0 ? 'var(--green)' : diff < 0 ? 'var(--red)' : undefined }}>{t.lpg_diff || '0'}</td>
                     <td className="mono">{rs(t.lpg_rent_total)}</td>
                     <td className="mono">{t.act_days || '—'}</td>
                     <td className="mono">{rs(t.total_exp)}</td>
                     <td className="mono" style={{ color: t.net_pl >= 0 ? 'var(--green)' : 'var(--red)' }}>{rs(t.net_pl)}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -360,7 +360,7 @@ function BowserwiseReport({ trips, company, dateRange }: { trips: Trip[]; compan
 // ─── Monthwise ────────────────────────────────────────────────────────────────
 
 function MonthwiseReport({ trips, company, dateRange }: { trips: Trip[]; company: string; dateRange: string }) {
-  type Row = { key: string; label: string; count: number; lifted: number; rent: number; exp: number; pl: number };
+  type Row = { key: string; label: string; count: number; km: number; lifted: number; rent: number; exp: number; pl: number };
 
   const map = new Map<string, Row>();
   for (const t of trips) {
@@ -369,10 +369,11 @@ function MonthwiseReport({ trips, company, dateRange }: { trips: Trip[]; company
     if (!map.has(key)) {
       const d = new Date(key + '-01');
       const label = d.toLocaleDateString('en-PK', { month: 'short', year: 'numeric' });
-      map.set(key, { key, label, count: 0, lifted: 0, rent: 0, exp: 0, pl: 0 });
+      map.set(key, { key, label, count: 0, km: 0, lifted: 0, rent: 0, exp: 0, pl: 0 });
     }
     const r = map.get(key)!;
     r.count++;
+    r.km     += t.km || 0;
     r.lifted += t.lifted || 0;
     r.rent   += t.lpg_rent_total || 0;
     r.exp    += t.total_exp || 0;
@@ -382,8 +383,8 @@ function MonthwiseReport({ trips, company, dateRange }: { trips: Trip[]; company
   const rows = [...map.values()].sort((a, b) => a.key.localeCompare(b.key));
 
   function handlePDF() {
-    const head = [['Month', '# Trips', 'LPG Lifted (kg)', 'Total Rent', 'Total Exp', 'Net P/L']];
-    const body = rows.map(r => [r.label, r.count, fmtNum(r.lifted), rs(r.rent), rs(r.exp), rs(r.pl)]);
+    const head = [['Month', '# Trips', 'Distance (km)', 'LPG Lifted (kg)', 'Total Rent', 'Total Exp', 'Net P/L']];
+    const body = rows.map(r => [r.label, r.count, fmtNum(r.km), fmtNum(r.lifted), rs(r.rent), rs(r.exp), rs(r.pl)]);
     viewPDF(company, 'Monthwise Report', dateRange, head, body);
   }
 
@@ -395,15 +396,16 @@ function MonthwiseReport({ trips, company, dateRange }: { trips: Trip[]; company
       <div className="table-wrap">
         <table>
           <thead>
-            <tr><th>Month</th><th># Trips</th><th>LPG Lifted (kg)</th><th>Total Rent</th><th>Total Exp</th><th>Net P/L</th></tr>
+            <tr><th>Month</th><th># Trips</th><th>Distance (km)</th><th>LPG Lifted (kg)</th><th>Total Rent</th><th>Total Exp</th><th>Net P/L</th></tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={6}><div className="empty">No trips in this period.</div></td></tr>
+              <tr><td colSpan={7}><div className="empty">No trips in this period.</div></td></tr>
             ) : rows.map(r => (
               <tr key={r.key}>
                 <td>{r.label}</td>
                 <td className="mono">{r.count}</td>
+                <td className="mono">{fmtNum(r.km)}</td>
                 <td className="mono">{fmtNum(r.lifted)}</td>
                 <td className="mono">{rs(r.rent)}</td>
                 <td className="mono" style={{ color: 'var(--red)' }}>{rs(r.exp)}</td>

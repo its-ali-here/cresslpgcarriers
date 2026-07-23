@@ -147,7 +147,10 @@ function SummaryReport({ trips, expenses, company, dateRange, dateFrom, dateTo }
   const revenue      = trips.reduce((s, t) => s + (t.lpg_rent_total || 0), 0);
   const tripExp       = trips.reduce((s, t) => s + (t.total_exp || 0), 0);
   const genExp        = filteredExp.reduce((s, e) => s + e.amount, 0);
+  const grossProfit    = revenue - tripExp;
+  const grossProfitPct = revenue ? (grossProfit / revenue) * 100 : 0;
   const net           = revenue - tripExp - genExp;
+  const netProfitPct  = revenue ? (net / revenue) * 100 : 0;
   const dieselConsumed = trips.reduce((s, t) => s + (t.diesel_consumed || 0), 0);
   const dieselCost     = trips.reduce((s, t) => s + (t.diesel_cost || 0), 0);
   const totalKm        = trips.filter(t => t.diesel_consumed > 0).reduce((s, t) => s + (t.km || 0), 0);
@@ -159,8 +162,12 @@ function SummaryReport({ trips, expenses, company, dateRange, dateFrom, dateTo }
     const body = [
       ['Total rent', rs(revenue)],
       ['Trip expenses', rs(tripExp)],
+      ['Gross profit', rs(grossProfit)],
+      ['Gross profit %', `${grossProfitPct.toFixed(1)}%`],
+      ['Trip count', String(trips.length)],
       ['Other expenses', rs(genExp)],
       ['Net profit', rs(net)],
+      ['Net profit %', `${netProfitPct.toFixed(1)}%`],
       ['Total diesel consumed', `${dieselConsumed.toLocaleString()} ltr`],
       ['Total diesel cost', rs(dieselCost)],
       ['Total diesel average', dieselAvg ? `${dieselAvg.toFixed(2)} km/ltr` : '—'],
@@ -175,10 +182,14 @@ function SummaryReport({ trips, expenses, company, dateRange, dateFrom, dateTo }
         <button className="btn btn-ghost btn-sm" onClick={handlePDF}>View PDF</button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 12 }}>
-        <div className="metric"><div className="metric-label">Total rent</div><div className="metric-value green">{rs(revenue)}</div><div className="metric-sub">from {trips.length} trips</div></div>
+        <div className="metric"><div className="metric-label">Total rent</div><div className="metric-value green">{rs(revenue)}</div></div>
         <div className="metric"><div className="metric-label">Trip expenses</div><div className="metric-value red">{rs(tripExp)}</div></div>
+        <div className="metric"><div className="metric-label">Gross profit</div><div className={`metric-value ${grossProfit >= 0 ? 'green' : 'red'}`}>{rs(grossProfit)}</div></div>
+        <div className="metric"><div className="metric-label">Gross profit %</div><div className={`metric-value ${grossProfitPct >= 0 ? 'green' : 'red'}`}>{grossProfitPct.toFixed(1)}%</div></div>
+        <div className="metric"><div className="metric-label">Trip count</div><div className="metric-value">{trips.length}</div></div>
         <div className="metric"><div className="metric-label">Other expenses</div><div className="metric-value red">{rs(genExp)}</div></div>
         <div className="metric"><div className="metric-label">Net profit</div><div className={`metric-value ${net >= 0 ? 'green' : 'red'}`}>{rs(net)}</div></div>
+        <div className="metric"><div className="metric-label">Net profit %</div><div className={`metric-value ${netProfitPct >= 0 ? 'green' : 'red'}`}>{netProfitPct.toFixed(1)}%</div></div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
         <div className="metric"><div className="metric-label">Total diesel consumed</div><div className="metric-value">{dieselConsumed.toLocaleString()} ltr</div></div>

@@ -44,6 +44,10 @@ export default function Trips() {
   const [editing, setEditing] = useState<Trip | null | 'new'>(null);
   const [page, setPage] = useState(1);
   const [vehicleFilter, setVehicleFilter] = useState('');
+  const [fromProvinceFilter, setFromProvinceFilter] = useState('');
+  const [toProvinceFilter, setToProvinceFilter] = useState('');
+  const [fromDistrictFilter, setFromDistrictFilter] = useState('');
+  const [toDistrictFilter, setToDistrictFilter] = useState('');
   const [sort, setSort] = useState<SortState>(null);
 
   const isAdmin    = role === 'admin';
@@ -52,7 +56,25 @@ export default function Trips() {
 
   const sorted = [...trips].sort((a, b) => (b.no || '').localeCompare(a.no || ''));
   const vehicles = Array.from(new Set(trips.map(t => t.vehicle).filter(Boolean))).sort();
-  const filtered = vehicleFilter ? sorted.filter(t => t.vehicle === vehicleFilter) : sorted;
+  const fromProvinces = Array.from(new Set(trips.map(t => t.from_province).filter(Boolean))).sort();
+  const toProvinces = Array.from(new Set(trips.map(t => t.to_province).filter(Boolean))).sort();
+  const showDistrictFilters = !!(fromProvinceFilter && toProvinceFilter);
+  const fromDistricts = Array.from(new Set(
+    trips.filter(t => !fromProvinceFilter || t.from_province === fromProvinceFilter).map(t => t.from_city).filter(Boolean)
+  )).sort();
+  const toDistricts = Array.from(new Set(
+    trips.filter(t => !toProvinceFilter || t.to_province === toProvinceFilter).map(t => t.to_city).filter(Boolean)
+  )).sort();
+  const filtered = sorted.filter(t => {
+    if (vehicleFilter && t.vehicle !== vehicleFilter) return false;
+    if (fromProvinceFilter && t.from_province !== fromProvinceFilter) return false;
+    if (toProvinceFilter && t.to_province !== toProvinceFilter) return false;
+    if (showDistrictFilters) {
+      if (fromDistrictFilter && t.from_city !== fromDistrictFilter) return false;
+      if (toDistrictFilter && t.to_city !== toDistrictFilter) return false;
+    }
+    return true;
+  });
   const displayed = sort
     ? [...filtered].sort((a, b) => (sortValue(a, sort.key) - sortValue(b, sort.key)) * (sort.dir === 'asc' ? 1 : -1))
     : filtered;
@@ -109,6 +131,46 @@ export default function Trips() {
             <option value="">All vehicles</option>
             {vehicles.map(v => <option key={v} value={v}>{v}</option>)}
           </select>
+          <select
+            className="btn btn-ghost"
+            value={fromProvinceFilter}
+            onChange={e => { setFromProvinceFilter(e.target.value); setFromDistrictFilter(''); setPage(1); }}
+            style={{ minWidth: 140 }}
+          >
+            <option value="">From (Province)</option>
+            {fromProvinces.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+          <select
+            className="btn btn-ghost"
+            value={toProvinceFilter}
+            onChange={e => { setToProvinceFilter(e.target.value); setToDistrictFilter(''); setPage(1); }}
+            style={{ minWidth: 140 }}
+          >
+            <option value="">To (Province)</option>
+            {toProvinces.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+          {showDistrictFilters && (
+            <>
+              <select
+                className="btn btn-ghost"
+                value={fromDistrictFilter}
+                onChange={e => { setFromDistrictFilter(e.target.value); setPage(1); }}
+                style={{ minWidth: 140 }}
+              >
+                <option value="">From (District)</option>
+                {fromDistricts.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+              <select
+                className="btn btn-ghost"
+                value={toDistrictFilter}
+                onChange={e => { setToDistrictFilter(e.target.value); setPage(1); }}
+                style={{ minWidth: 140 }}
+              >
+                <option value="">To (District)</option>
+                {toDistricts.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </>
+          )}
           {canAddTrip && <button className="btn btn-primary" onClick={() => setEditing('new')}>+ New trip</button>}
         </div>
       </div>
@@ -130,7 +192,7 @@ export default function Trips() {
           </thead>
           <tbody>
             {displayed.length === 0 ? (
-              <tr><td colSpan={11}><div className="empty"><div className="empty-icon">🚛</div>{vehicleFilter ? `No trips for vehicle ${vehicleFilter}.` : 'No trips logged yet. Click "New trip" to start.'}</div></td></tr>
+              <tr><td colSpan={11}><div className="empty"><div className="empty-icon">🚛</div>{vehicleFilter || fromProvinceFilter || toProvinceFilter || fromDistrictFilter || toDistrictFilter ? 'No trips match the selected filters.' : 'No trips logged yet. Click "New trip" to start.'}</div></td></tr>
             ) : pageTrips.map(t => (
               <tr key={t.id} style={t.flagged ? { background: 'rgba(255,60,60,0.08)' } : t.approved === false || t.pending_edit ? { background: 'rgba(255,200,0,0.10)' } : undefined}>
                 <td className="mono">

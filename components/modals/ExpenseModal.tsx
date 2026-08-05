@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { uid, today } from '@/lib/utils';
-import { EXPENSE_CATEGORIES, VEHICLE_LINKED_CATEGORIES, PAYEE_LINKED_CATEGORIES } from '@/lib/types';
-import type { Expense, Payee } from '@/lib/types';
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, VEHICLE_LINKED_CATEGORIES, PAYEE_LINKED_CATEGORIES } from '@/lib/types';
+import type { Expense, ExpenseCategoryName, Payee } from '@/lib/types';
 import DateInput from '../DateInput';
 
 interface Props {
@@ -14,6 +14,8 @@ interface Props {
 
 export default function ExpenseModal({ expense, onClose }: Props) {
   const { saveExpense, drivers, payees, savePayee } = useApp();
+  const [type, setType] = useState<'expense' | 'income'>(expense?.type ?? 'expense');
+  const isIncome = type === 'income';
   const [form, setForm] = useState<Expense>(expense ?? {
     id: uid(), date: today(), cat: 'Miscellaneous', description: '', amount: 0,
   });
@@ -21,18 +23,29 @@ export default function ExpenseModal({ expense, onClose }: Props) {
   const [addingPayee, setAddingPayee] = useState(false);
   const [newPayeeName, setNewPayeeName] = useState('');
 
-  const isVehicleLinked = VEHICLE_LINKED_CATEGORIES.includes(form.cat);
-  const isPayeeLinked = PAYEE_LINKED_CATEGORIES.includes(form.cat);
+  const isVehicleLinked = !isIncome && VEHICLE_LINKED_CATEGORIES.includes(form.cat as ExpenseCategoryName);
+  const isPayeeLinked = !isIncome && PAYEE_LINKED_CATEGORIES.includes(form.cat as ExpenseCategoryName);
   const missingVehicle = isVehicleLinked && !form.vehicle_no;
 
   const set = (k: keyof Expense, v: string | number) => setForm(prev => ({ ...prev, [k]: v }));
 
-  function setCategory(cat: Expense['cat']) {
+  function setCategory(cat: string) {
     setForm(prev => ({
       ...prev,
       cat,
-      vehicle_no: VEHICLE_LINKED_CATEGORIES.includes(cat) ? prev.vehicle_no : undefined,
-      payee: PAYEE_LINKED_CATEGORIES.includes(cat) ? prev.payee : undefined,
+      vehicle_no: VEHICLE_LINKED_CATEGORIES.includes(cat as ExpenseCategoryName) ? prev.vehicle_no : undefined,
+      payee: PAYEE_LINKED_CATEGORIES.includes(cat as ExpenseCategoryName) ? prev.payee : undefined,
+    }));
+  }
+
+  function toggleType(next: 'expense' | 'income') {
+    if (next === type) return;
+    setType(next);
+    setForm(prev => ({
+      ...prev,
+      cat: next === 'income' ? 'Bowser rent' : 'Miscellaneous',
+      vehicle_no: undefined,
+      payee: undefined,
     }));
   }
 
@@ -48,7 +61,13 @@ export default function ExpenseModal({ expense, onClose }: Props) {
 
   async function handleSave() {
     if (missingVehicle) { setShowErrors(true); return; }
-    await saveExpense(form);
+    try {
+      await saveExpense({ ...form, type });
+    } catch (err) {
+      console.error('Failed to save expense:', err);
+      alert('Could not save entry — check your connection and try again.');
+      return;
+    }
     onClose();
   }
 
@@ -56,16 +75,37 @@ export default function ExpenseModal({ expense, onClose }: Props) {
     <div className="modal-bg open" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <div className="modal-title">{expense ? 'Edit' : 'Add'} general expense</div>
+          <div className="modal-title">{expense ? 'Edit' : 'Add'} entry</div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body">
           <div className="form-grid">
+            <div className="form-group full">
+              <label>Type</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  className={`btn ${!isIncome ? 'btn-primary' : 'btn-ghost'}`}
+                  style={{ flex: 1, justifyContent: 'center' }}
+                  onClick={() => toggleType('expense')}
+                >
+                  Expense
+                </button>
+                <button
+                  type="button"
+                  className={`btn ${isIncome ? 'btn-primary' : 'btn-ghost'}`}
+                  style={{ flex: 1, justifyContent: 'center' }}
+                  onClick={() => toggleType('income')}
+                >
+                  Income
+                </button>
+              </div>
+            </div>
             <div className="form-group"><label>Date</label><DateInput value={form.date} onChange={v => set('date', v)} /></div>
             <div className="form-group">
               <label>Category</label>
-              <select value={form.cat} onChange={e => setCategory(e.target.value as Expense['cat'])}>
-                {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+              <select value={form.cat} onChange={e => setCategory(e.target.value)}>
+                {(isIncome ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
             {isVehicleLinked && (

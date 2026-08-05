@@ -4,9 +4,10 @@ import { useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useApp } from '@/context/AppContext';
-import { rs, today } from '@/lib/utils';
+import { rs, today, isIncome } from '@/lib/utils';
 import { weightedAvgKmLtr, vehicleExpenseRisk } from '@/lib/fleetPerformance';
-import type { Trip } from '@/lib/types';
+import { EXPENSE_CATEGORIES } from '@/lib/types';
+import type { Trip, Expense } from '@/lib/types';
 
 type ReportTab = 'summary' | 'tripwise' | 'bowserwise' | 'monthwise';
 
@@ -17,6 +18,37 @@ function fmtDate(iso: string) {
 
 function fmtNum(n: number) {
   return n ? n.toLocaleString('en-PK') : '0';
+}
+
+// Inclusive list of 'YYYY-MM' keys spanning two ISO dates.
+function monthKeysInRange(from: string, to: string): string[] {
+  if (!from || !to) return [];
+  const [fy, fm] = from.slice(0, 7).split('-').map(Number);
+  const [ty, tm] = to.slice(0, 7).split('-').map(Number);
+  const keys: string[] = [];
+  let y = fy, m = fm;
+  while (y < ty || (y === ty && m <= tm)) {
+    keys.push(`${y}-${String(m).padStart(2, '0')}`);
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return keys;
+}
+
+function monthShortLabel(key: string) {
+  return new Date(key + '-01').toLocaleDateString('en-PK', { month: 'short', year: 'numeric' });
+}
+
+// e.g. "Jan–Jun 2026" for a single year, "Jan 2025 – Feb 2026" spanning years.
+function monthRangeLabel(keys: string[]) {
+  if (keys.length === 0) return 'Total';
+  if (keys.length === 1) return monthShortLabel(keys[0]);
+  const first = monthShortLabel(keys[0]);
+  const last = monthShortLabel(keys[keys.length - 1]);
+  if (keys[0].slice(0, 4) === keys[keys.length - 1].slice(0, 4)) {
+    return `${first.split(' ')[0]}–${last}`;
+  }
+  return `${first} – ${last}`;
 }
 
 // Letterhead styling — matches the CRESS LPG CARRIERS company letterhead (gold bars, dark title, footer addresses).
@@ -128,7 +160,7 @@ export default function Reports() {
       {tab === 'summary'    && <SummaryReport trips={filteredTrips} expenses={expenses} company={company} dateRange={dateRange} dateFrom={dateFrom} dateTo={dateTo} />}
       {tab === 'tripwise'   && <TripwiseReport trips={filteredTrips} company={company} dateRange={dateRange} />}
       {tab === 'bowserwise' && <BowserwiseReport trips={filteredTrips} company={company} dateRange={dateRange} />}
-      {tab === 'monthwise'  && <MonthwiseReport trips={filteredTrips} company={company} dateRange={dateRange} />}
+      {tab === 'monthwise'  && <MonthwiseReport trips={filteredTrips} expenses={expenses} company={company} dateRange={dateRange} dateFrom={dateFrom} dateTo={dateTo} />}
     </div>
   );
 }
@@ -146,7 +178,7 @@ function SummaryReport({ trips, expenses, company, dateRange, dateFrom, dateTo }
   const filteredExp = expenses.filter(e => !e.date || (e.date >= dateFrom && e.date <= dateTo));
   const revenue      = trips.reduce((s, t) => s + (t.lpg_rent_total || 0), 0);
   const tripExp       = trips.reduce((s, t) => s + (t.total_exp || 0), 0);
-  const genExp        = filteredExp.reduce((s, e) => s + e.amount, 0);
+  const genExp        = filteredExp.filter(e => !isIncome(e)).reduce((s, e) => s + e.amount, 0);
   const grossProfit    = revenue - tripExp;
   const grossProfitPct = revenue ? (grossProfit / revenue) * 100 : 0;
   const net           = revenue - tripExp - genExp;
@@ -412,32 +444,113 @@ function BowserwiseReport({ trips, company, dateRange }: { trips: Trip[]; compan
 
 // ─── Monthwise ────────────────────────────────────────────────────────────────
 
-function MonthwiseReport({ trips, company, dateRange }: { trips: Trip[]; company: string; dateRange: string }) {
-  type Row = { key: string; label: string; count: number; km: number; lifted: number; rent: number; exp: number; pl: number };
+type MonthAgg = {
+  count: number; km: number; rent: number;
+  dieselExp: number; tripExp: number; totalTripExp: number; grossPL: number;
+  otherByCat: Record<string, number>; otherTotal: number; netPL: number;
+};
 
-  const map = new Map<string, Row>();
+function emptyMonthAgg(): MonthAgg {
+  return { count: 0, km: 0, rent: 0, dieselExp: 0, tripExp: 0, totalTripExp: 0, grossPL: 0, otherByCat: {}, otherTotal: 0, netPL: 0 };
+}
+
+type MonthCol = { key: string; label: string; isTotal: boolean; agg: MonthAgg };
+
+function FinCell({ col, value, color }: { col: MonthCol; value: string; color?: string }) {
+  return (
+    <td
+      className="mono"
+      style={{
+        textAlign: 'right',
+        color,
+        borderLeft: col.isTotal ? '2px solid var(--accent)' : undefined,
+        fontWeight: col.isTotal ? 600 : undefined,
+      }}
+    >
+      {value}
+    </td>
+  );
+}
+
+function MonthwiseReport({ trips, expenses, company, dateRange, dateFrom, dateTo }: {
+  trips: Trip[];
+  expenses: Expense[];
+  company: string;
+  dateRange: string;
+  dateFrom: string;
+  dateTo: string;
+}) {
+  const monthKeys = monthKeysInRange(dateFrom, dateTo);
+
+  const perMonth = new Map<string, MonthAgg>();
+  for (const key of monthKeys) perMonth.set(key, emptyMonthAgg());
+
   for (const t of trips) {
     if (!t.load_date) continue;
-    const key = t.load_date.slice(0, 7);
-    if (!map.has(key)) {
-      const d = new Date(key + '-01');
-      const label = d.toLocaleDateString('en-PK', { month: 'short', year: 'numeric' });
-      map.set(key, { key, label, count: 0, km: 0, lifted: 0, rent: 0, exp: 0, pl: 0 });
-    }
-    const r = map.get(key)!;
-    r.count++;
-    r.km     += t.km || 0;
-    r.lifted += t.lifted || 0;
-    r.rent   += t.lpg_rent_total || 0;
-    r.exp    += t.total_exp || 0;
-    r.pl     += t.net_pl || 0;
+    const m = perMonth.get(t.load_date.slice(0, 7));
+    if (!m) continue;
+    const diesel = t.diesel_cost || 0;
+    const total = t.total_exp || 0;
+    m.count++;
+    m.km += t.km || 0;
+    m.rent += t.lpg_rent_total || 0;
+    m.dieselExp += diesel;
+    m.tripExp += total - diesel;
+    m.totalTripExp += total;
   }
 
-  const rows = [...map.values()].sort((a, b) => a.key.localeCompare(b.key));
+  for (const e of expenses) {
+    if (!e.date || isIncome(e)) continue;
+    const m = perMonth.get(e.date.slice(0, 7));
+    if (!m) continue;
+    m.otherByCat[e.cat] = (m.otherByCat[e.cat] || 0) + e.amount;
+    m.otherTotal += e.amount;
+  }
+
+  for (const key of monthKeys) {
+    const m = perMonth.get(key)!;
+    m.grossPL = m.rent - m.totalTripExp;
+    m.netPL = m.grossPL - m.otherTotal;
+  }
+
+  const totals = emptyMonthAgg();
+  for (const key of monthKeys) {
+    const m = perMonth.get(key)!;
+    totals.count += m.count;
+    totals.km += m.km;
+    totals.rent += m.rent;
+    totals.dieselExp += m.dieselExp;
+    totals.tripExp += m.tripExp;
+    totals.totalTripExp += m.totalTripExp;
+    totals.grossPL += m.grossPL;
+    totals.otherTotal += m.otherTotal;
+    totals.netPL += m.netPL;
+    for (const cat of Object.keys(m.otherByCat)) {
+      totals.otherByCat[cat] = (totals.otherByCat[cat] || 0) + m.otherByCat[cat];
+    }
+  }
+
+  const categoriesPresent = EXPENSE_CATEGORIES.filter(c => totals.otherByCat[c] > 0);
+  const columns: MonthCol[] = [
+    ...monthKeys.map(k => ({ key: k, label: monthShortLabel(k), isTotal: false, agg: perMonth.get(k)! })),
+    { key: '__total__', label: monthRangeLabel(monthKeys), isTotal: true, agg: totals },
+  ];
 
   function handlePDF() {
-    const head = [['Month', '# Trips', 'Distance (km)', 'LPG Lifted (kg)', 'Total Rent', 'Total Exp', 'Net P/L']];
-    const body = rows.map(r => [r.label, r.count, fmtNum(r.km), fmtNum(r.lifted), rs(r.rent), rs(r.exp), rs(r.pl)]);
+    const head = [['Metric', ...columns.map(c => c.label)]];
+    const body: (string | number)[][] = [
+      ['Number of trips', ...columns.map(c => fmtNum(c.agg.count))],
+      ['Distance travelled (km)', ...columns.map(c => fmtNum(c.agg.km))],
+      ['Total rent', ...columns.map(c => rs(c.agg.rent))],
+      ['Diesel expense', ...columns.map(c => rs(c.agg.dieselExp))],
+      ['Trip expense', ...columns.map(c => rs(c.agg.tripExp))],
+      ['Total trip expense', ...columns.map(c => rs(c.agg.totalTripExp))],
+      ['Gross profit / (loss)', ...columns.map(c => rs(c.agg.grossPL))],
+      ...(categoriesPresent.length ? [['Other expenses', ...columns.map(() => '')]] : []),
+      ...categoriesPresent.map(cat => [cat, ...columns.map(c => rs(c.agg.otherByCat[cat] || 0))]),
+      ['Total other expenses', ...columns.map(c => rs(c.agg.otherTotal))],
+      ['Net profit / (loss)', ...columns.map(c => rs(c.agg.netPL))],
+    ];
     viewPDF(company, 'Monthwise Report', dateRange, head, body);
   }
 
@@ -449,22 +562,66 @@ function MonthwiseReport({ trips, company, dateRange }: { trips: Trip[]; company
       <div className="table-wrap">
         <table>
           <thead>
-            <tr><th>Month</th><th># Trips</th><th>Distance (km)</th><th>LPG Lifted (kg)</th><th>Total Rent</th><th>Total Exp</th><th>Net P/L</th></tr>
+            <tr>
+              <th>Metric</th>
+              {columns.map(c => (
+                <th key={c.key} style={{ textAlign: 'right', borderLeft: c.isTotal ? '2px solid var(--accent)' : undefined }}>{c.label}</th>
+              ))}
+            </tr>
           </thead>
           <tbody>
-            {rows.length === 0 ? (
-              <tr><td colSpan={7}><div className="empty">No trips in this period.</div></td></tr>
-            ) : rows.map(r => (
-              <tr key={r.key}>
-                <td>{r.label}</td>
-                <td className="mono">{r.count}</td>
-                <td className="mono">{fmtNum(r.km)}</td>
-                <td className="mono">{fmtNum(r.lifted)}</td>
-                <td className="mono">{rs(r.rent)}</td>
-                <td className="mono" style={{ color: 'var(--red)' }}>{rs(r.exp)}</td>
-                <td className="mono" style={{ color: r.pl >= 0 ? 'var(--green)' : 'var(--red)' }}>{rs(r.pl)}</td>
-              </tr>
-            ))}
+            {monthKeys.length === 0 ? (
+              <tr><td colSpan={columns.length + 1}><div className="empty">No trips in this period.</div></td></tr>
+            ) : (
+              <>
+                <tr>
+                  <td>Number of trips</td>
+                  {columns.map(c => <FinCell key={c.key} col={c} value={fmtNum(c.agg.count)} />)}
+                </tr>
+                <tr>
+                  <td>Distance travelled (km)</td>
+                  {columns.map(c => <FinCell key={c.key} col={c} value={fmtNum(c.agg.km)} />)}
+                </tr>
+                <tr>
+                  <td>Total rent</td>
+                  {columns.map(c => <FinCell key={c.key} col={c} value={rs(c.agg.rent)} color="var(--green)" />)}
+                </tr>
+                <tr>
+                  <td>Diesel expense</td>
+                  {columns.map(c => <FinCell key={c.key} col={c} value={rs(c.agg.dieselExp)} color="var(--red)" />)}
+                </tr>
+                <tr>
+                  <td>Trip expense</td>
+                  {columns.map(c => <FinCell key={c.key} col={c} value={rs(c.agg.tripExp)} color="var(--red)" />)}
+                </tr>
+                <tr className="fin-subtotal">
+                  <td>Total trip expense</td>
+                  {columns.map(c => <FinCell key={c.key} col={c} value={rs(c.agg.totalTripExp)} color="var(--red)" />)}
+                </tr>
+                <tr className="fin-subtotal">
+                  <td>Gross profit / (loss)</td>
+                  {columns.map(c => <FinCell key={c.key} col={c} value={rs(c.agg.grossPL)} color={c.agg.grossPL >= 0 ? 'var(--green)' : 'var(--red)'} />)}
+                </tr>
+
+                {categoriesPresent.length > 0 && (
+                  <tr className="fin-section"><td colSpan={columns.length + 1}>Other expenses</td></tr>
+                )}
+                {categoriesPresent.map(cat => (
+                  <tr key={cat}>
+                    <td>{cat}</td>
+                    {columns.map(c => <FinCell key={c.key} col={c} value={rs(c.agg.otherByCat[cat] || 0)} color="var(--red)" />)}
+                  </tr>
+                ))}
+                <tr className="fin-subtotal">
+                  <td>Total other expenses</td>
+                  {columns.map(c => <FinCell key={c.key} col={c} value={rs(c.agg.otherTotal)} color="var(--red)" />)}
+                </tr>
+                <tr className="fin-total">
+                  <td>Net profit / (loss)</td>
+                  {columns.map(c => <FinCell key={c.key} col={c} value={rs(c.agg.netPL)} color={c.agg.netPL >= 0 ? 'var(--green)' : 'var(--red)'} />)}
+                </tr>
+              </>
+            )}
           </tbody>
         </table>
       </div>

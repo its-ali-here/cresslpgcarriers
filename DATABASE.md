@@ -78,6 +78,7 @@ CREATE TABLE public.expenses (
   created_at timestamp with time zone DEFAULT now(),
   vehicle_no text,
   payee text,
+  type text NOT NULL DEFAULT 'expense'::text,
   CONSTRAINT expenses_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.bowsers (

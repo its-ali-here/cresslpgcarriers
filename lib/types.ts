@@ -136,19 +136,28 @@ export const VEHICLE_LINKED_CATEGORIES: readonly ExpenseCategoryName[] =
 export const PAYEE_LINKED_CATEGORIES: readonly ExpenseCategoryName[] =
   ['Utilities', 'Vehicle maintenance', 'Tyre replacement', 'Parts purchasing', 'Rent'];
 
+export const INCOME_CATEGORIES = [
+  'Bowser rent',
+  'Miscellaneous',
+] as const;
+export type IncomeCategoryName = typeof INCOME_CATEGORIES[number];
+
 export interface Payee {
   id: string;
   name: string;
 }
 
+export type LedgerEntryType = 'expense' | 'income';
+
 export interface Expense {
   id: string;
   date: string;
-  cat: ExpenseCategoryName;
+  cat: string;
   description: string;
   amount: number;
   payee?: string;
   vehicle_no?: string;
+  type?: LedgerEntryType;
 }
 
 

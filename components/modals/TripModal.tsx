@@ -298,6 +298,8 @@ export default function TripModal({ trip, onClose }: Props) {
   const otherExpTotal = otherExpRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
   const expFields: (keyof TripForm)[] = ['trip_amount', 'engine_oil_cost', 'diesel_cost'];
   const totalExp = expFields.reduce((s, f) => s + (Number(form[f]) || 0), 0) + otherExpTotal;
+  const dieselExpense = Number(form.diesel_cost) || 0;
+  const tripExpenseOnly = totalExp - dieselExpense;
   const lpgIncome = (form.lpg_rent_total || 0) + (form.lpg_gl_pkr || 0);
   const pl = lpgIncome - totalExp;
 
@@ -332,10 +334,16 @@ export default function TripModal({ trip, onClose }: Props) {
       diesel_purchases: dieselRows,
     };
 
-    if (role === 'operator' && !isNew && trip!.approved !== false) {
-      await saveTrip({ ...trip!, pending_edit: { ...tripData, __edited_by: userName, __edited_at: new Date().toISOString() } });
-    } else {
-      await saveTrip({ ...tripData, ...(isNew && { approved: role === 'admin', created_by: userId }) });
+    try {
+      if (role === 'operator' && !isNew && trip!.approved !== false) {
+        await saveTrip({ ...trip!, pending_edit: { ...tripData, __edited_by: userName, __edited_at: new Date().toISOString() } });
+      } else {
+        await saveTrip({ ...tripData, ...(isNew && { approved: role === 'admin', created_by: userId }) });
+      }
+    } catch (err) {
+      console.error('Failed to save trip:', err);
+      alert('Could not save trip — check your connection and try again.');
+      return;
     }
     onClose();
   }
@@ -664,6 +672,8 @@ export default function TripModal({ trip, onClose }: Props) {
                 <div className="cost-row"><span className="cost-label">LPG rent (base)</span><span className="cost-val">{rs(form.lpg_rent_total)}</span></div>
                 {(form.lpg_gl_pkr || 0) !== 0 && <div className="cost-row"><span className="cost-label">Gain / loss adjustment</span><span className="cost-val" style={{ color: (form.lpg_gl_pkr || 0) >= 0 ? 'var(--green)' : 'var(--red)' }}>{rs(form.lpg_gl_pkr)}</span></div>}
                 <div className="cost-row"><span className="cost-label">Adjusted income</span><span className="cost-val">{rs(lpgIncome)}</span></div>
+                <div className="cost-row"><span className="cost-label">Diesel expense</span><span className="cost-val" style={{ color: 'var(--red)' }}>{rs(dieselExpense)}</span></div>
+                <div className="cost-row"><span className="cost-label">Trip expense</span><span className="cost-val" style={{ color: 'var(--red)' }}>{rs(tripExpenseOnly)}</span></div>
                 <div className="cost-row"><span className="cost-label">Total expenses</span><span className="cost-val" style={{ color: 'var(--red)' }}>{rs(totalExp)}</span></div>
                 <div className={`cost-row ${pl >= 0 ? 'profit' : 'loss'}`}><span className="cost-label">Net P/L</span><span>{rs(pl)}</span></div>
               </div>

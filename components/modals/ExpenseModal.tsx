@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { uid, today } from '@/lib/utils';
-import { EXPENSE_CATEGORIES, VEHICLE_LINKED_CATEGORIES } from '@/lib/types';
-import type { Expense } from '@/lib/types';
+import { EXPENSE_CATEGORIES, VEHICLE_LINKED_CATEGORIES, PAYEE_LINKED_CATEGORIES } from '@/lib/types';
+import type { Expense, Payee } from '@/lib/types';
+import DateInput from '../DateInput';
 
 interface Props {
   expense: Expense | null;
@@ -12,19 +13,37 @@ interface Props {
 }
 
 export default function ExpenseModal({ expense, onClose }: Props) {
-  const { saveExpense, drivers } = useApp();
+  const { saveExpense, drivers, payees, savePayee } = useApp();
   const [form, setForm] = useState<Expense>(expense ?? {
-    id: uid(), date: today(), cat: 'Miscellaneous', description: '', amount: 0, ref: '',
+    id: uid(), date: today(), cat: 'Miscellaneous', description: '', amount: 0,
   });
   const [showErrors, setShowErrors] = useState(false);
+  const [addingPayee, setAddingPayee] = useState(false);
+  const [newPayeeName, setNewPayeeName] = useState('');
 
   const isVehicleLinked = VEHICLE_LINKED_CATEGORIES.includes(form.cat);
+  const isPayeeLinked = PAYEE_LINKED_CATEGORIES.includes(form.cat);
   const missingVehicle = isVehicleLinked && !form.vehicle_no;
 
   const set = (k: keyof Expense, v: string | number) => setForm(prev => ({ ...prev, [k]: v }));
 
   function setCategory(cat: Expense['cat']) {
-    setForm(prev => ({ ...prev, cat, vehicle_no: VEHICLE_LINKED_CATEGORIES.includes(cat) ? prev.vehicle_no : undefined }));
+    setForm(prev => ({
+      ...prev,
+      cat,
+      vehicle_no: VEHICLE_LINKED_CATEGORIES.includes(cat) ? prev.vehicle_no : undefined,
+      payee: PAYEE_LINKED_CATEGORIES.includes(cat) ? prev.payee : undefined,
+    }));
+  }
+
+  async function handleSaveNewPayee() {
+    const name = newPayeeName.trim();
+    if (!name) return;
+    const payee: Payee = { id: uid(), name };
+    await savePayee(payee);
+    set('payee', name);
+    setAddingPayee(false);
+    setNewPayeeName('');
   }
 
   async function handleSave() {
@@ -42,7 +61,7 @@ export default function ExpenseModal({ expense, onClose }: Props) {
         </div>
         <div className="modal-body">
           <div className="form-grid">
-            <div className="form-group"><label>Date</label><input type="date" value={form.date} onChange={e => set('date', e.target.value)} /></div>
+            <div className="form-group"><label>Date</label><DateInput value={form.date} onChange={v => set('date', v)} /></div>
             <div className="form-group">
               <label>Category</label>
               <select value={form.cat} onChange={e => setCategory(e.target.value as Expense['cat'])}>
@@ -62,9 +81,42 @@ export default function ExpenseModal({ expense, onClose }: Props) {
                 </select>
               </div>
             )}
+            {isPayeeLinked && (
+              <div className="form-group">
+                <label>Payee</label>
+                {addingPayee ? (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input
+                      style={{ flex: 1, minWidth: 140 }}
+                      placeholder="New payee name"
+                      value={newPayeeName}
+                      onChange={e => setNewPayeeName(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleSaveNewPayee()}
+                      autoFocus
+                    />
+                    <button className="btn btn-sm btn-primary" onClick={handleSaveNewPayee}>Add</button>
+                    <button className="btn btn-sm btn-ghost" onClick={() => { setAddingPayee(false); setNewPayeeName(''); }}>✕</button>
+                  </div>
+                ) : (
+                  <select
+                    value={form.payee || ''}
+                    onChange={e => {
+                      if (e.target.value === '__add_new__') { setAddingPayee(true); setNewPayeeName(''); }
+                      else set('payee', e.target.value);
+                    }}
+                  >
+                    <option value="">— select payee —</option>
+                    {form.payee && !payees.find(p => p.name === form.payee) && (
+                      <option value={form.payee}>{form.payee}</option>
+                    )}
+                    {payees.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                    <option value="__add_new__">+ Add new payee</option>
+                  </select>
+                )}
+              </div>
+            )}
             <div className="form-group full"><label>Description</label><input value={form.description} onChange={e => set('description', e.target.value)} /></div>
             <div className="form-group"><label>Amount (Rs)</label><input type="number" value={form.amount || ''} onChange={e => set('amount', Number(e.target.value))} /></div>
-            <div className="form-group"><label>Reference</label><input value={form.ref} onChange={e => set('ref', e.target.value)} /></div>
           </div>
         </div>
         <div className="modal-footer">

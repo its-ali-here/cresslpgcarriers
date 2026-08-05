@@ -4,25 +4,18 @@
 CREATE TABLE public.trips (
   id text NOT NULL,
   no text,
-  month text,
   load_date date,
   offload_date date,
   vehicle text,
-  driver text,
-  helper text,
-  client text,
   from_location text,
   to_location text,
   km numeric DEFAULT 0,
-  exp_days numeric DEFAULT 0,
   act_days numeric DEFAULT 0,
   over_days numeric DEFAULT 0,
   lifted numeric DEFAULT 0,
   delivered numeric DEFAULT 0,
   lpg_diff text,
   lpg_bill text,
-  billed numeric DEFAULT 0,
-  peshgi numeric DEFAULT 0,
   status text,
   toll numeric DEFAULT 0,
   driver_exp numeric DEFAULT 0,
@@ -84,6 +77,7 @@ CREATE TABLE public.expenses (
   ref text,
   created_at timestamp with time zone DEFAULT now(),
   vehicle_no text,
+  payee text,
   CONSTRAINT expenses_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.bowsers (
@@ -175,4 +169,9 @@ CREATE TABLE public.diesel_purchases (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT diesel_purchases_pkey PRIMARY KEY (id),
   CONSTRAINT diesel_purchases_trip_id_fkey FOREIGN KEY (trip_id) REFERENCES public.trips(id)
+);
+CREATE TABLE public.payees (
+  id text NOT NULL,
+  name text NOT NULL,
+  CONSTRAINT payees_pkey PRIMARY KEY (id)
 );

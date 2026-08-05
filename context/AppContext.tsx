@@ -4,7 +4,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import type {
   AppDB, Trip, Expense,
   FleetItem, Driver, Settings,
-  Province, District, Site, ExpenseCategory, DieselSupplier,
+  Province, District, Site, ExpenseCategory, DieselSupplier, Payee,
 } from '@/lib/types';
 import * as db from '@/lib/db';
 
@@ -49,6 +49,9 @@ interface AppContextValue extends AppDB {
   // Diesel suppliers
   saveDieselSupplier: (s: DieselSupplier) => Promise<void>;
   deleteDieselSupplier: (id: string) => Promise<void>;
+  // Payees
+  savePayee: (p: Payee) => Promise<void>;
+  deletePayee: (id: string) => Promise<void>;
 }
 
 function numberingDate(t: Trip): string {
@@ -75,7 +78,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     trips: [], expenses: [],
     fleet: [], drivers: [],
     settings: { company: 'CRESS LPG CARRIERS', yard: '', driverDaily: 0, helperDaily: 0, tripDays: 0, dieselBench: 2.6 },
-    provinces: [], districts: [], sites: [], expenseCategories: [], dieselSuppliers: [],
+    provinces: [], districts: [], sites: [], expenseCategories: [], dieselSuppliers: [], payees: [],
   });
 
   useEffect(() => {
@@ -370,6 +373,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setState(prev => ({ ...prev, dieselSuppliers: prev.dieselSuppliers.filter(s => s.id !== id) }));
   }, []);
 
+  // PAYEES
+  const savePayee = useCallback(async (p: Payee) => {
+    await db.upsertPayee(p);
+    setState(prev => {
+      const idx = prev.payees.findIndex(x => x.id === p.id);
+      const payees = idx >= 0 ? prev.payees.map(x => x.id === p.id ? p : x) : [...prev.payees, p];
+      return { ...prev, payees };
+    });
+  }, []);
+
+  const deletePayee = useCallback(async (id: string) => {
+    await db.deletePayee(id);
+    setState(prev => ({ ...prev, payees: prev.payees.filter(p => p.id !== id) }));
+  }, []);
+
   return (
     <AppContext.Provider value={{
       ...state, loading,
@@ -383,6 +401,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       saveSite, deleteSite,
       saveExpenseCategory, deleteExpenseCategory,
       saveDieselSupplier, deleteDieselSupplier,
+      savePayee, deletePayee,
     }}>
       {children}
     </AppContext.Provider>

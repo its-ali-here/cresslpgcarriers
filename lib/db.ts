@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import type {
   Trip, Expense,
   FleetItem, Driver, Settings, AppDB,
-  Province, District, Site, UserProfile, ExpenseCategory, DieselSupplier, DieselPurchase,
+  Province, District, Site, UserProfile, ExpenseCategory, DieselSupplier, DieselPurchase, Payee,
 } from './types';
 import { uid } from './utils';
 
@@ -276,21 +276,38 @@ export async function deleteDieselSupplier(id: string): Promise<void> {
   if (error) throw error;
 }
 
+// ---- PAYEES ----
+export async function fetchPayees(): Promise<Payee[]> {
+  return graceful(async () => {
+    const { data, error } = await supabase.from('payees').select('*').order('name');
+    if (error) return [];
+    return (data || []) as Payee[];
+  });
+}
+export async function upsertPayee(p: Payee): Promise<void> {
+  const { error } = await supabase.from('payees').upsert(p);
+  if (error) throw error;
+}
+export async function deletePayee(id: string): Promise<void> {
+  const { error } = await supabase.from('payees').delete().eq('id', id);
+  if (error) throw error;
+}
+
 // ---- FETCH ALL ----
 export async function fetchAll(): Promise<AppDB> {
   const [
     trips, expenses,
     fleet, drivers, settings,
-    provinces, districts, sites, expenseCategories, dieselSuppliers,
+    provinces, districts, sites, expenseCategories, dieselSuppliers, payees,
   ] = await Promise.all([
     fetchTrips(), fetchExpenses(),
     fetchFleet(), fetchDrivers(), fetchSettings(),
     fetchProvinces(), fetchDistricts(), fetchSites(),
-    fetchExpenseCategories(), fetchDieselSuppliers(),
+    fetchExpenseCategories(), fetchDieselSuppliers(), fetchPayees(),
   ]);
   return {
     trips, expenses,
     fleet, drivers, settings,
-    provinces, districts, sites, expenseCategories, dieselSuppliers,
+    provinces, districts, sites, expenseCategories, dieselSuppliers, payees,
   };
 }

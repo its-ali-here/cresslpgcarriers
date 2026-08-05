@@ -8,6 +8,13 @@ export function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+// Formats an ISO date (YYYY-MM-DD) as "23 May 2026".
+export function fmtDate(iso: string | undefined | null): string {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
 export function rs(n: number | string | undefined | null): string {
   return 'Rs ' + Number(n || 0).toLocaleString('en-PK');
 }

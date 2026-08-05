@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useUser } from '@/context/UserContext';
 import { uid, today, rs, arrowNavigate, round2 } from '@/lib/utils';
 import type { Trip, DieselPurchase, OtherExpense, ExpenseCategory, DieselSupplier } from '@/lib/types';
 import { SITE_TYPES as SITE_TYPES_LIST } from '@/lib/types';
+import DateInput from '../DateInput';
 
 interface Props {
   trip: Trip | null;
@@ -25,42 +26,13 @@ const DELAY_REASONS = [
 ];
 
 
-function fmtDate(iso: string) {
-  if (!iso) return '';
-  const d = new Date(iso + 'T00:00:00');
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-function DateInput({ value, onChange, placeholder, style }: { value: string; onChange: (v: string) => void; placeholder?: string; style?: React.CSSProperties }) {
-  const ref = useRef<HTMLInputElement>(null);
-  return (
-    <div style={{ position: 'relative' }}>
-      <input
-        readOnly
-        value={fmtDate(value)}
-        placeholder={placeholder || 'DD MM YYYY'}
-        style={{ cursor: 'pointer', ...style }}
-        onClick={() => { try { ref.current?.showPicker?.(); } catch { ref.current?.focus(); } }}
-      />
-      <input
-        ref={ref}
-        type="date"
-        value={value}
-        onChange={e => { onChange(e.target.value); e.target.blur(); }}
-        style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }}
-        tabIndex={-1}
-      />
-    </div>
-  );
-}
-
 function emptyForm(): TripForm {
   return {
-    no: '', month: '', load_date: today(), offload_date: '', trip_start_date: '', trip_end_date: '', vehicle: '', driver: '', helper: '', client: '',
+    no: '', load_date: today(), offload_date: '', trip_start_date: '', trip_end_date: '', vehicle: '',
     from_province: '', from_city: '', from: '', to_province: '', to_city: '', to: '',
     km: 0, act_days: 0,
     lifted: 0, delivered: 0, lpg_diff: '', lpg_bill: 'absorbed', lpg_rate_kg: 0, lpg_gl_pkr: 0, lpg_rent_mt: 0, lpg_rent_total: 0,
-    billed: 0, peshgi: 0, status: 'Completed',
+    status: 'Completed',
     toll: 0, trip_amount: 0, daily_rate: 0, driver_exp: 0, helper_exp: 0,
     overday_cost: 0, chalan: 0, chalan_resp: '', tyre: 0, loadunload: 0,
     weigh: 0, excise: 0, motorway: 0, grease: 0, air: 0,

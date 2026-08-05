@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useUser } from '@/context/UserContext';
-import { rs, pageWindow } from '@/lib/utils';
+import { rs, pageWindow, fmtDate } from '@/lib/utils';
 import { EXPENSE_CATEGORIES } from '@/lib/types';
 import type { Expense } from '@/lib/types';
 import ExpenseModal from '../modals/ExpenseModal';
@@ -99,19 +99,19 @@ export default function Expenses() {
       <div className="table-wrap">
         <table>
           <thead>
-            <tr><th>Date</th><th>Category</th><th>Vehicle</th><th>Description</th><th>Amount</th><th>Ref</th><th></th></tr>
+            <tr><th>Date</th><th>Category</th><th>Vehicle</th><th>Description</th><th>Amount</th><th>Payee</th><th></th></tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr><td colSpan={7}><div className="empty"><div className="empty-icon">💸</div>{catFilter || vehicleFilter ? 'No expenses match this filter.' : 'No expenses recorded.'}</div></td></tr>
             ) : pageExpenses.map(e => (
               <tr key={e.id}>
-                <td>{e.date}</td>
+                <td>{fmtDate(e.date)}</td>
                 <td><span className="badge badge-gray">{e.cat}</span></td>
                 <td className="mono">{e.vehicle_no || '—'}</td>
                 <td>{e.description || '—'}</td>
                 <td className="mono" style={{ color: 'var(--red)' }}>{rs(e.amount)}</td>
-                <td className="mono">{e.ref || '—'}</td>
+                <td className="mono">{e.payee || '—'}</td>
                 <td>
                   <div className="row-actions">
                     {isAdmin && <button className="btn btn-ghost btn-sm" onClick={() => setEditing(e)}>✏</button>}

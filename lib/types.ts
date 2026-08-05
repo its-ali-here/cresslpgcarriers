@@ -53,15 +53,11 @@ export interface Site {
 export interface Trip {
   id: string;
   no: string;
-  month: string;
   load_date: string;
   offload_date: string;
   trip_start_date: string;
   trip_end_date: string;
   vehicle: string;
-  driver: string;
-  helper: string;
-  client: string;
   from_province: string;
   from_city: string;
   from: string;
@@ -78,8 +74,6 @@ export interface Trip {
   lpg_gl_pkr: number;
   lpg_rent_mt: number;
   lpg_rent_total: number;
-  billed: number;
-  peshgi: number;
   status: string;
   toll: number;
   trip_amount: number;
@@ -126,8 +120,9 @@ export interface Trip {
 export const EXPENSE_CATEGORIES = [
   'Tyre replacement',
   'Vehicle maintenance',
-  'Driver salary',
-  'Operations staff salary',
+  'Salaries (Yard)',
+  'Salaries (Drivers)',
+  'Salaries (Crane)',
   'Utilities',
   'Rent',
   'Parts purchasing',
@@ -136,7 +131,15 @@ export const EXPENSE_CATEGORIES = [
 export type ExpenseCategoryName = typeof EXPENSE_CATEGORIES[number];
 
 export const VEHICLE_LINKED_CATEGORIES: readonly ExpenseCategoryName[] =
-  ['Tyre replacement', 'Vehicle maintenance', 'Driver salary'];
+  ['Tyre replacement', 'Vehicle maintenance'];
+
+export const PAYEE_LINKED_CATEGORIES: readonly ExpenseCategoryName[] =
+  ['Utilities', 'Vehicle maintenance', 'Tyre replacement', 'Parts purchasing', 'Rent'];
+
+export interface Payee {
+  id: string;
+  name: string;
+}
 
 export interface Expense {
   id: string;
@@ -144,7 +147,7 @@ export interface Expense {
   cat: ExpenseCategoryName;
   description: string;
   amount: number;
-  ref: string;
+  payee?: string;
   vehicle_no?: string;
 }
 
@@ -199,4 +202,5 @@ export interface AppDB {
   sites: Site[];
   expenseCategories: ExpenseCategory[];
   dieselSuppliers: DieselSupplier[];
+  payees: Payee[];
 }

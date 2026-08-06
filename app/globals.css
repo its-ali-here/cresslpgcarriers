@@ -105,6 +105,8 @@ tr:hover td { background: #fff7e8; }
 tbody tr.fin-subtotal td { font-weight: 600; border-top: 1px solid var(--border2); }
 tbody tr.fin-total td { font-weight: 700; border-top: 2px solid var(--navy); background: var(--bg3); font-family: var(--display); font-size: 13.5px; }
 tbody tr.fin-section td { background: var(--bg); color: var(--text3); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; font-family: var(--cond); padding-top: 14px; white-space: normal; }
+.fin-table td, .fin-table th { padding: 12px 18px; }
+.fin-table td:first-child { font-weight: 600; }
 
 /* BADGES */
 .badge { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: var(--radius); font-size: 10px; font-weight: 600; font-family: var(--cond); letter-spacing: 0.05em; text-transform: uppercase; border: 1px solid transparent; }
